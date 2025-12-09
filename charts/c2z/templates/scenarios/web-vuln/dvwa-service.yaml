@@ -1,0 +1,16 @@
+{{- if .Values.scenarios.webVuln.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: dvwa
+  namespace: scenario-web-vuln
+spec:
+  type: ClusterIP
+  selector:
+    app: dvwa
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+{{- end }}
+
