@@ -1,0 +1,16 @@
+{{- if .Values.scenarios.webVuln.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: juice-shop
+  namespace: scenario-web-vuln
+spec:
+  type: ClusterIP
+  selector:
+    app: juice-shop
+  ports:
+  - port: 3000
+    targetPort: 3000
+    name: http
+{{- end }}
+

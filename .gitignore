@@ -4,3 +4,9 @@
 .cursor
 .idea
 .vscode
+
+
+.venv
+
+# k3d
+

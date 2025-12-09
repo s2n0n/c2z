@@ -1,0 +1,55 @@
+# 시나리오 기본 격리 정책 (Web Vuln)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: scenario-web-vuln
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+
+---
+# 공격자 → 시나리오 접근 허용 (Web Vuln)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-attacker-zone
+  namespace: scenario-web-vuln
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          zone: red-team
+    ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 3000
+
+---
+# 모니터링 메트릭 수집 허용 (Web Vuln)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-egress
+  namespace: scenario-web-vuln
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          purpose: observability
+    ports:
+    - protocol: TCP
+      port: 9090  # Prometheus

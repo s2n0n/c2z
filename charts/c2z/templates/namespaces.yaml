@@ -1,0 +1,52 @@
+# 공격자 영역
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: attacker-zone
+  labels:
+    zone: red-team
+    isolation: restricted
+    c2z.io/type: attacker
+
+---
+# 시나리오 1: Web Application 취약점
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scenario-web-vuln
+  labels:
+    scenario-type: web-application
+    difficulty: beginner
+    c2z.io/scenario-id: web-vuln-001
+
+---
+# 시나리오 2: Container Escape
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scenario-container-escape
+  labels:
+    scenario-type: container-security
+    difficulty: intermediate
+    c2z.io/scenario-id: container-escape-001
+
+---
+# 시나리오 3: Network Attack
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scenario-network-attack
+  labels:
+    scenario-type: network-security
+    difficulty: intermediate
+    c2z.io/scenario-id: network-attack-001
+
+---
+# 모니터링 스택
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    purpose: observability
+    c2z.io/type: infrastructure
