@@ -1,4 +1,4 @@
-# 재현 환경(Replication Environment) Tech Spec
+# Replication Environment Tech Spec
 
 ## [작성 방법]
 1. 각 항목별 예시 내용 확인 후 선정하여 작성
@@ -9,7 +9,7 @@
 
 ---
 
-## 예시
+## 💢예시 💢
 ## 대상 소프트웨어
 - 제품명/버전
   - MediaWiki 1.43.0 
@@ -38,12 +38,11 @@
 
 ---
 
-## 🫡🫡45번 줄부터 복붙해서 작성해주세요!!🫡🫡
+# 🫡🫡45번 줄부터 복붙해서 작성해주세요!!🫡🫡
 
 ---
 
-# 재현 환경(Replication Environment) Tech Spec
-
+# Replication Environment Tech Spec
 
 ## 대상 소프트웨어(Target Application Specification)
 
