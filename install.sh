@@ -89,16 +89,14 @@ install_k8s() {
             echo "   Cluster 'c2z' already exists."
         else
             echo "   Creating k3d cluster 'c2z'..."
-            # Create cluster with ports exposed directly on server (bypass LB issue)
+            # Create cluster with port forwarding via load balancer
             k3d cluster create c2z \
                 --api-port 6443 \
-                --port "80:80@server:0" \
-                --port "443:443@server:0" \
-                --port "3000-3005:3000-3005@server:0" \
+                --port "80:80@loadbalancer" \
+                --port "443:443@loadbalancer" \
+                --port "3000-3005:3000-3005@loadbalancer" \
                 --agents 1 \
-                --no-lb \
-                --k3s-arg "--disable=traefik@server:0" \
-                --k3s-arg "--disable=servicelb@server:0" \
+                --k3s-arg "--disable=traefik@server:*" \
                 --wait
 
         fi
