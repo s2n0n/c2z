@@ -4,6 +4,7 @@
 .cursor
 .idea
 .vscode
+.DS_Store
 
 
 .venv
