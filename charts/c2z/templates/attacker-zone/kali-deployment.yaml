@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kali
+  namespace: attacker-zone
+  labels:
+    app: kali
+    zone: red-team
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kali
+  template:
+    metadata:
+      labels:
+        app: kali
+        zone: red-team
+    spec:
+      containers:
+      - name: kali
+        image: {{ .Values.attacker.kali.image }}
+        command: ["/bin/bash", "-c", "--"]
+        args: ["while true; do sleep 30; done;"]
+        resources:
+          requests:
+            memory: {{ .Values.attacker.kali.resources.requests.memory }}
+            cpu: {{ .Values.attacker.kali.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.attacker.kali.resources.limits.memory }}
+            cpu: {{ .Values.attacker.kali.resources.limits.cpu }}
+        volumeMounts:
+        - name: kali-tools
+          mountPath: /root/data
+      volumes:
+      - name: kali-tools
+        persistentVolumeClaim:
+          claimName: kali-tools-pvc

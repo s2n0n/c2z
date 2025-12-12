@@ -1,0 +1,6 @@
+apiVersion: v2
+name: c2z
+description: A Helm chart for the c2z penetration testing lab environment
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

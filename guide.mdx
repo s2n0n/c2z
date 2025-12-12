@@ -1,0 +1,1078 @@
+# c2z Guide
+
+- [EN](#en)
+- [KR](#kr)
+
+# EN
+
+## Table of Contents
+
+1. [How to Run on Kubernetes](#how-to-run-on-kubernetes)
+2. [Folder and File Structure](#folder-and-file-structure)
+3. [Key Component Roles](#key-component-roles)
+
+## How to Run on Kubernetes
+
+### 1️⃣ Automated Installation (Recommended)
+
+The simplest method is to use the provided `install.sh` script.
+
+```bash
+# Run from project root
+chmod +x install.sh
+./install.sh
+```
+
+**What the installation script automatically performs:**
+
+1. **Python Virtual Environment Setup** (`.venv`)
+   - Create Python 3 virtual environment
+   - Install dependencies from `requirements.txt` (click, tabulate, pyyaml)
+
+2. **System Requirements Verification**
+   - Verify RAM 16GB or more
+   - Verify Docker installation (required for macOS)
+
+3. **Kubernetes Cluster Installation**
+   - **Linux**: K3s (native installation)
+   - **macOS**: k3d (Docker Desktop based)
+   
+4. **Helm Installation**
+   - Automatic Helm 3 installation
+
+5. **c2z Stack Deployment**
+   - Deploy `charts/c2z` Helm chart to `c2z-system` namespace
+   - Install all enabled scenarios and monitoring stack
+
+6. **CLI Wrapper Script Creation**
+   - Create `./c2z` executable (automatically activates Python virtual environment)
+
+### 2️⃣ Manual Installation
+
+If you want to execute each step individually:
+
+#### Step 1: Kubernetes Cluster Setup
+
+**Linux (K3s):**
+```bash
+curl -sfL https://get.k3s.io | sh -s - \
+  --write-kubeconfig-mode 644 \
+  --disable traefik \
+  --disable servicelb
+
+# Configure kubeconfig
+mkdir -p ~/.kube
+sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+sudo chown $USER:$USER ~/.kube/config
+```
+
+**macOS (k3d):**
+```bash
+# Install k3d
+curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+# Create cluster
+k3d cluster create c2z \
+  --api-port 6443 \
+  --port "80:80@server:0" \
+  --port "443:443@server:0" \
+  --port "3000-3005:3000-3005@server:0" \
+  --agents 1 \
+  --no-lb \
+  --k3s-arg "--disable=traefik@server:0" \
+  --k3s-arg "--disable=servicelb@server:0" \
+  --wait
+
+# Configure kubeconfig
+k3d kubeconfig merge c2z --kubeconfig-switch-context
+```
+
+#### Step 2: Helm Installation
+
+```bash
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+```
+
+#### Step 3: c2z Deployment
+
+```bash
+# Deploy with local chart
+helm upgrade --install c2z ./charts/c2z \
+  --namespace c2z-system \
+  --create-namespace \
+  --wait \
+  --timeout 10m
+```
+
+#### Step 4: CLI Setup
+
+```bash
+# Create and activate Python virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Use CLI
+./c2z list
+```
+
+### 3️⃣ CLI Usage
+
+Once installation is complete, you can manage scenarios using the `c2z` CLI.
+
+```bash
+# List available scenarios
+./c2z list
+
+# Deploy scenario (activate)
+./c2z deploy web-vuln
+
+# Delete scenario (deactivate)
+./c2z delete web-vuln
+
+# Check overall system status
+./c2z status
+
+# View scenario logs
+./c2z logs web-vuln
+```
+
+### 4️⃣ Deployment Verification
+
+```bash
+# Check Pods in all namespaces
+kubectl get pods -A
+
+# Check c2z-system namespace
+kubectl get all -n c2z-system
+
+# Check scenario namespace
+kubectl get all -n scenario-web-vuln
+```
+
+### 5️⃣ Service Access
+
+Once scenarios are deployed, you can access them as follows:
+
+```bash
+# Access via port-forward
+kubectl port-forward -n scenario-web-vuln svc/dvwa 8080:80
+# Access http://localhost:8080 in browser
+
+kubectl port-forward -n scenario-web-vuln svc/juice-shop 3000:3000
+# Access http://localhost:3000 in browser
+
+# Access Kali Linux attacker environment
+kubectl exec -it -n c2z-system deployment/kali -- /bin/bash
+```
+
+---
+
+## Folder and File Structure
+
+```
+c2z/
+├── .github/                    # GitHub configuration
+│   ├── PULL_REQUEST_TEMPLATE.md  # PR template
+│   └── workflows/              # (Future CI/CD workflows)
+│
+├── .venv/                      # Python virtual environment (auto-generated)
+│
+├── charts/                     # Helm Charts directory
+│   └── c2z/                    # Main c2z Helm chart
+│       ├── Chart.yaml          # Chart metadata
+│       ├── values.yaml         # Default configuration values
+│       └── templates/          # Kubernetes resource templates
+│           ├── namespaces.yaml       # Namespace definitions
+│           ├── network-policies.yaml # Network isolation policies
+│           ├── resource-quotas.yaml  # Resource limit policies
+│           ├── attacker-zone/        # Attacker environment resources
+│           │   ├── kali-deployment.yaml  # Kali Linux Pod
+│           │   ├── kali-service.yaml     # Kali service
+│           │   └── kali-pvc.yaml         # Persistent storage
+│           ├── monitoring/           # Monitoring stack
+│           │   ├── prometheus-deployment.yaml  # Metrics collection
+│           │   ├── grafana-deployment.yaml     # Visualization dashboard
+│           │   └── loki-deployment.yaml        # Log collection
+│           └── scenarios/            # Scenario definitions
+│               └── web-vuln/         # Web vulnerability scenario
+│                   ├── dvwa-deployment.yaml    # DVWA app
+│                   ├── dvwa-service.yaml       # DVWA service
+│                   ├── juiceshop-deployment.yaml  # Juice Shop app
+│                   └── juiceshop-service.yaml     # Juice Shop service
+│
+├── scenarios/                  # Scenario-specific documentation and source
+│   └── web-vuln/
+│       └── README.md           # Web vulnerability scenario description
+│
+├── research/                   # Vulnerability research materials
+│   ├── broken-access-control/  # Access control vulnerability research
+│   ├── injection/              # Injection vulnerability research
+│   ├── supply-chain/           # Supply chain attack research
+│   └── template.md             # Research document template
+│
+├── install.sh                  # One-click installation script
+├── c2z-cli.py                  # CLI management tool (Python)
+├── c2z                         # CLI wrapper script (auto-generated)
+├── requirements.txt            # Python dependencies
+├── README.md                   # Project documentation (English/Korean)
+├── guide.mdx                   # This guide document
+├── LICENSE                     # Apache 2.0 license
+└── .gitignore                  # Git exclude file list
+```
+
+---
+
+## Key Component Roles
+
+### 🔧 Installation and Configuration Files
+
+#### `install.sh`
+- **Role**: Main script that automatically installs the entire c2z environment
+- **Key Features**:
+  - Python virtual environment setup
+  - System requirements verification (RAM, Docker)
+  - Kubernetes cluster installation (OS-specific: K3s/k3d)
+  - Helm installation
+  - c2z Helm chart deployment
+  - CLI wrapper script creation
+- **Execution Flow**:
+  1. `setup_venv()` - Prepare Python environment
+  2. `check_requirements()` - System verification
+  3. `install_k8s()` - Kubernetes installation
+  4. `install_helm()` - Helm installation
+  5. `deploy_c2z()` - Chart deployment
+  6. `create_wrapper()` - CLI wrapper creation
+
+#### `requirements.txt`
+- **Role**: Define dependencies for Python CLI tool
+- **Packages**:
+  - `click`: CLI framework
+  - `tabulate`: Table format output
+  - `pyyaml`: YAML parsing (Kubernetes resource handling)
+
+#### `c2z-cli.py`
+- **Role**: Python CLI tool for scenario management
+- **Main Commands**:
+  - `list`: Display available scenario list
+  - `deploy <scenario-id>`: Activate scenario (update Helm values)
+  - `delete <scenario-id>`: Deactivate scenario
+  - `status`: Check overall system status
+  - `logs <scenario-id>`: View scenario logs
+- **Operation Method**:
+  - Uses monolithic Helm chart structure
+  - Toggle scenarios via `helm upgrade --reuse-values --set scenarios.<name>.enabled=true/false`
+  - Status check and log viewing through `kubectl` commands
+
+#### `c2z` (Wrapper Script)
+- **Role**: Automatically activate Python virtual environment and execute `c2z-cli.py`
+- **Creation**: Auto-generated by `install.sh`
+- **Content**:
+  ```bash
+  #!/bin/bash
+  source $(dirname "$0")/.venv/bin/activate
+  python3 $(dirname "$0")/c2z-cli.py "$@"
+  ```
+
+---
+
+### Helm Chart Structure
+
+#### `charts/c2z/Chart.yaml`
+- **Role**: Define Helm chart metadata
+- **Content**:
+  - Chart name: `c2z`
+  - Version: `0.1.0`
+  - App version: `1.0.0`
+  - Type: `application`
+
+#### `charts/c2z/values.yaml`
+- **Role**: Define default configuration values for the chart
+- **Main Sections**:
+  - `global`: Common settings (image registry, Pull Policy)
+  - `attacker`: Kali Linux attacker environment configuration
+    - Image, resource limits, persistent storage settings
+  - `scenarios`: Scenario-specific activation flags and settings
+    - `webVuln.enabled`: Web vulnerability scenario activation
+    - `containerEscape.enabled`: Container Escape scenario
+    - `networkAttack.enabled`: Network Attack scenario
+  - `monitoring`: Prometheus, Grafana, Loki configuration
+  - `networkPolicies`: Network isolation policy activation
+
+#### `charts/c2z/templates/namespaces.yaml`
+- **Role**: Create Kubernetes namespaces
+- **Created Namespaces**:
+  - `c2z-system`: Attacker environment and monitoring stack
+  - `scenario-web-vuln`: Web vulnerability scenario
+  - `scenario-container-escape`: Container Escape scenario
+  - `scenario-network-attack`: Network Attack scenario
+
+#### `charts/c2z/templates/network-policies.yaml`
+- **Role**: Define network isolation policies
+- **Security Features**:
+  - Network isolation between scenarios
+  - Default Deny policy (only explicitly allowed communication)
+  - Allow access from attacker environment to scenarios
+
+#### `charts/c2z/templates/resource-quotas.yaml`
+- **Role**: Resource limits per namespace
+- **Limit Items**:
+  - CPU, memory requests/limits
+  - Pod count limits
+  - Prevent resource abuse
+
+---
+
+### Attacker Environment (Attacker Zone)
+
+#### `attacker-zone/kali-deployment.yaml`
+- **Role**: Deploy Kali Linux attacker Pod
+- **Features**:
+  - Image: `kalilinux/kali-rolling:latest`
+  - Resources: 2Gi RAM, 1 vCPU (request) / 4Gi RAM, 2 vCPU (limit)
+  - Persistent storage mount (`/root`)
+  - Pre-installed network tools and penetration testing tools
+
+#### `attacker-zone/kali-pvc.yaml`
+- **Role**: Persistent storage volume claim for Kali environment
+- **Capacity**: 20Gi
+- **Purpose**: Store attack scripts and results
+
+#### `attacker-zone/kali-service.yaml`
+- **Role**: Expose service for Kali Pod
+- **Type**: ClusterIP (internal access)
+
+---
+
+### Monitoring Stack
+
+#### `monitoring/prometheus-deployment.yaml`
+- **Role**: Metrics collection and storage
+- **Features**:
+  - Collect Kubernetes cluster metrics
+  - Collect scenario Pod metrics
+  - 7-day data retention
+  - 10Gi storage
+
+#### `monitoring/grafana-deployment.yaml`
+- **Role**: Metrics visualization dashboard
+- **Features**:
+  - Prometheus data source integration
+  - Real-time dashboard
+  - Default admin account: `admin/admin`
+
+#### `monitoring/loki-deployment.yaml`
+- **Role**: Log collection and storage
+- **Features**:
+  - Collect all Pod logs
+  - Log viewing integrated with Grafana
+  - Support attack pattern analysis
+
+---
+
+### Scenario: Web Vulnerabilities (web-vuln)
+
+#### `scenarios/web-vuln/dvwa-deployment.yaml`
+- **Role**: Deploy DVWA (Damn Vulnerable Web Application)
+- **Image**: `vulnerables/web-dvwa:latest`
+- **Vulnerabilities**:
+  - SQL Injection
+  - XSS (Cross-Site Scripting)
+  - CSRF (Cross-Site Request Forgery)
+  - Command Injection
+  - File Upload vulnerabilities
+- **Difficulty**: Beginner ~ Intermediate
+
+#### `scenarios/web-vuln/dvwa-service.yaml`
+- **Role**: Expose DVWA service
+- **Port**: 80 (HTTP)
+- **Access**: Via port-forward or NodePort
+
+#### `scenarios/web-vuln/juiceshop-deployment.yaml`
+- **Role**: Deploy OWASP Juice Shop
+- **Image**: `bkimminich/juice-shop:latest`
+- **Vulnerabilities**:
+  - All OWASP Top 10 vulnerabilities
+  - 100+ security challenges
+  - Practical web application security learning
+
+#### `scenarios/web-vuln/juiceshop-service.yaml`
+- **Role**: Expose Juice Shop service
+- **Port**: 3000 (HTTP)
+
+---
+
+### Documentation and Research Materials
+
+#### `scenarios/web-vuln/README.md`
+- **Role**: Detailed description of Web vulnerability scenario
+- **Content**:
+  - Environment specs (OS, language, web server, DB)
+  - Source code and reproduction methods
+  - Deployment structure description
+  - Future customization plans
+
+#### `research/` Directory
+- **Role**: Vulnerability research repository
+- **Structure**:
+  - `broken-access-control/`: Access control vulnerability research
+  - `injection/`: Injection attack research
+  - `supply-chain/`: Supply chain attack research
+  - `template.md`: Research document template
+
+---
+
+## System Operation Flow
+
+### 1. Installation Phase
+```
+Execute install.sh
+  ↓
+Create Python virtual environment (.venv)
+  ↓
+Verify system requirements
+  ↓
+Install Kubernetes cluster (K3s/k3d)
+  ↓
+Install Helm
+  ↓
+Deploy c2z Helm chart (c2z-system namespace)
+  ↓
+Create CLI wrapper script (./c2z)
+```
+
+### 2. Scenario Deployment Phase
+```
+Execute ./c2z deploy web-vuln
+  ↓
+Call deploy() function in c2z-cli.py
+  ↓
+helm upgrade c2z ./charts/c2z --set scenarios.webVuln.enabled=true
+  ↓
+Helm updates values.yaml
+  ↓
+Kubernetes detects changes
+  ↓
+Create Pods in scenario-web-vuln namespace
+  ↓
+Run DVWA, Juice Shop containers
+  ↓
+Expose services and output access information
+```
+
+### 3. Attack Practice Phase
+```
+Access Kali Pod (kubectl exec)
+  ↓
+Allow scenario access according to network policies
+  ↓
+Execute attack tools (nmap, sqlmap, burpsuite, etc.)
+  ↓
+Detect vulnerabilities and exploit
+  ↓
+Prometheus/Loki collect metrics and logs
+  ↓
+Real-time monitoring in Grafana dashboard
+```
+
+---
+
+## Learning Path
+
+1. **Beginner**: Web Vulnerability Scenario (`web-vuln`)
+   - Learn basic web security concepts with DVWA
+   - Practice practical web application security with Juice Shop
+
+2. **Intermediate**: Container Escape Scenario (planned)
+   - Privileged Pod escape techniques
+   - Docker Socket mount exploitation
+
+3. **Intermediate**: Network Attack Scenario (planned)
+   - ARP Spoofing
+   - MITM (Man-in-the-Middle) attacks
+   - Denial of Service (DoS) attacks
+
+---
+
+## Troubleshooting
+
+### Issue: Pod in Pending State
+```bash
+# Check cause
+kubectl describe pod <pod-name> -n <namespace>
+
+# Adjust resource limits in values.yaml if resources are insufficient
+helm upgrade c2z ./charts/c2z --set attacker.kali.resources.requests.memory=1Gi
+```
+
+### Issue: Service Access Failure
+```bash
+# Check service status
+kubectl get svc -n scenario-web-vuln
+
+# Set up port-forward
+kubectl port-forward -n scenario-web-vuln svc/dvwa 8080:80
+```
+
+### Issue: Helm Deployment Failure
+```bash
+# Check Helm release status
+helm list -n c2z-system
+
+# Rollback
+helm rollback c2z -n c2z-system
+
+# Complete reinstallation
+helm uninstall c2z -n c2z-system
+./install.sh
+```
+
+---
+
+## Additional Information
+
+- **License**: Apache 2.0
+- **How to Contribute**: Refer to `.github/PULL_REQUEST_TEMPLATE.md`
+- **Issue Reporting**: Use GitHub Issues
+
+
+
+---
+
+
+
+# KR
+
+## 목차
+
+1. [Kubernetes에서 실행하는 방법](#kubernetes에서-실행하는-방법)
+2. [폴더 및 파일 구조 설명](#폴더-및-파일-구조-설명)
+3. [주요 컴포넌트 역할](#주요-컴포넌트-역할)
+
+## Kubernetes에서 실행하는 방법
+
+### 1️⃣ 자동 설치 (권장)
+
+가장 간단한 방법은 제공된 `install.sh` 스크립트를 사용하는 것입니다.
+
+```bash
+# 프로젝트 루트에서 실행
+chmod +x install.sh
+./install.sh
+```
+
+**설치 스크립트가 자동으로 수행하는 작업:**
+
+1. **Python 가상환경 설정** (`.venv`)
+   - Python 3 가상환경 생성
+   - `requirements.txt`의 의존성 설치 (click, tabulate, pyyaml)
+
+2. **시스템 요구사항 검증**
+   - RAM 16GB 이상 확인
+   - Docker 설치 확인 (macOS의 경우 필수)
+
+3. **Kubernetes 클러스터 설치**
+   - **Linux**: K3s (네이티브 설치)
+   - **macOS**: k3d (Docker Desktop 기반)
+   
+4. **Helm 설치**
+   - Helm 3 자동 설치
+
+5. **c2z 스택 배포**
+   - `charts/c2z` Helm 차트를 `c2z-system` 네임스페이스에 배포
+   - 모든 활성화된 시나리오와 모니터링 스택 설치
+
+6. **CLI 래퍼 스크립트 생성**
+   - `./c2z` 실행 파일 생성 (Python 가상환경 자동 활성화)
+
+### 2️⃣ 수동 설치
+
+각 단계를 개별적으로 실행하고 싶다면:
+
+#### Step 1: Kubernetes 클러스터 설정
+
+**Linux (K3s):**
+```bash
+curl -sfL https://get.k3s.io | sh -s - \
+  --write-kubeconfig-mode 644 \
+  --disable traefik \
+  --disable servicelb
+
+# kubeconfig 설정
+mkdir -p ~/.kube
+sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+sudo chown $USER:$USER ~/.kube/config
+```
+
+**macOS (k3d):**
+```bash
+# k3d 설치
+curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+# 클러스터 생성
+k3d cluster create c2z \
+  --api-port 6443 \
+  --port "80:80@server:0" \
+  --port "443:443@server:0" \
+  --port "3000-3005:3000-3005@server:0" \
+  --agents 1 \
+  --no-lb \
+  --k3s-arg "--disable=traefik@server:0" \
+  --k3s-arg "--disable=servicelb@server:0" \
+  --wait
+
+# kubeconfig 설정
+k3d kubeconfig merge c2z --kubeconfig-switch-context
+```
+
+#### Step 2: Helm 설치
+
+```bash
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+```
+
+#### Step 3: c2z 배포
+
+```bash
+# 로컬 차트로 배포
+helm upgrade --install c2z ./charts/c2z \
+  --namespace c2z-system \
+  --create-namespace \
+  --wait \
+  --timeout 10m
+```
+
+#### Step 4: CLI 설정
+
+```bash
+# Python 가상환경 생성 및 활성화
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 의존성 설치
+pip install -r requirements.txt
+
+# CLI 사용
+./c2z list
+```
+
+### 3️⃣ CLI 사용법
+
+설치가 완료되면 `c2z` CLI를 사용하여 시나리오를 관리할 수 있습니다.
+
+```bash
+# 사용 가능한 시나리오 목록 확인
+./c2z list
+
+# 시나리오 배포 (활성화)
+./c2z deploy web-vuln
+
+# 시나리오 삭제 (비활성화)
+./c2z delete web-vuln
+
+# 전체 시스템 상태 확인
+./c2z status
+
+# 시나리오 로그 확인
+./c2z logs web-vuln
+```
+
+### 4️⃣ 배포 확인
+
+```bash
+# 모든 네임스페이스의 Pod 확인
+kubectl get pods -A
+
+# c2z-system 네임스페이스 확인
+kubectl get all -n c2z-system
+
+# 시나리오 네임스페이스 확인
+kubectl get all -n scenario-web-vuln
+```
+
+### 5️⃣ 서비스 접속
+
+시나리오가 배포되면 다음과 같이 접속할 수 있습니다:
+
+```bash
+# Port-forward를 통한 접속
+kubectl port-forward -n scenario-web-vuln svc/dvwa 8080:80
+# 브라우저에서 http://localhost:8080 접속
+
+kubectl port-forward -n scenario-web-vuln svc/juice-shop 3000:3000
+# 브라우저에서 http://localhost:3000 접속
+
+# Kali Linux 공격자 환경 접속
+kubectl exec -it -n c2z-system deployment/kali -- /bin/bash
+```
+
+---
+
+## 폴더 및 파일 구조 설명
+
+```
+c2z/
+├── .github/                    # GitHub 설정
+│   ├── PULL_REQUEST_TEMPLATE.md  # PR 템플릿
+│   └── workflows/              # (향후 CI/CD 워크플로우)
+│
+├── .venv/                      # Python 가상환경 (자동 생성)
+│
+├── charts/                     # Helm Charts 디렉토리
+│   └── c2z/                    # 메인 c2z Helm 차트
+│       ├── Chart.yaml          # 차트 메타데이터
+│       ├── values.yaml         # 기본 설정 값
+│       └── templates/          # Kubernetes 리소스 템플릿
+│           ├── namespaces.yaml       # 네임스페이스 정의
+│           ├── network-policies.yaml # 네트워크 격리 정책
+│           ├── resource-quotas.yaml  # 리소스 제한 정책
+│           ├── attacker-zone/        # 공격자 환경 리소스
+│           │   ├── kali-deployment.yaml  # Kali Linux Pod
+│           │   ├── kali-service.yaml     # Kali 서비스
+│           │   └── kali-pvc.yaml         # 영구 스토리지
+│           ├── monitoring/           # 모니터링 스택
+│           │   ├── prometheus-deployment.yaml  # 메트릭 수집
+│           │   ├── grafana-deployment.yaml     # 시각화 대시보드
+│           │   └── loki-deployment.yaml        # 로그 수집
+│           └── scenarios/            # 시나리오 정의
+│               └── web-vuln/         # Web 취약점 시나리오
+│                   ├── dvwa-deployment.yaml    # DVWA 앱
+│                   ├── dvwa-service.yaml       # DVWA 서비스
+│                   ├── juiceshop-deployment.yaml  # Juice Shop 앱
+│                   └── juiceshop-service.yaml     # Juice Shop 서비스
+│
+├── scenarios/                  # 시나리오별 문서 및 소스
+│   └── web-vuln/
+│       └── README.md           # Web 취약점 시나리오 설명
+│
+├── research/                   # 취약점 연구 자료
+│   ├── broken-access-control/  # 접근 제어 취약점 연구
+│   ├── injection/              # 인젝션 취약점 연구
+│   ├── supply-chain/           # 공급망 공격 연구
+│   └── template.md             # 연구 문서 템플릿
+│
+├── install.sh                  # 원클릭 설치 스크립트
+├── c2z-cli.py                  # CLI 관리 도구 (Python)
+├── c2z                         # CLI 래퍼 스크립트 (자동 생성)
+├── requirements.txt            # Python 의존성
+├── README.md                   # 프로젝트 문서 (영어/한국어)
+├── guide.mdx                   # 이 가이드 문서
+├── LICENSE                     # Apache 2.0 라이선스
+└── .gitignore                  # Git 제외 파일 목록
+```
+
+---
+
+## 주요 컴포넌트 역할
+
+### 🔧 설치 및 설정 파일
+
+#### `install.sh`
+- **역할**: 전체 c2z 환경을 자동으로 설치하는 메인 스크립트
+- **주요 기능**:
+  - Python 가상환경 설정
+  - 시스템 요구사항 검증 (RAM, Docker)
+  - Kubernetes 클러스터 설치 (OS별 분기: K3s/k3d)
+  - Helm 설치
+  - c2z Helm 차트 배포
+  - CLI 래퍼 스크립트 생성
+- **실행 흐름**:
+  1. `setup_venv()` - Python 환경 준비
+  2. `check_requirements()` - 시스템 검증
+  3. `install_k8s()` - Kubernetes 설치
+  4. `install_helm()` - Helm 설치
+  5. `deploy_c2z()` - 차트 배포
+  6. `create_wrapper()` - CLI 래퍼 생성
+
+#### `requirements.txt`
+- **역할**: Python CLI 도구의 의존성 정의
+- **패키지**:
+  - `click`: CLI 프레임워크
+  - `tabulate`: 테이블 형식 출력
+  - `pyyaml`: YAML 파싱 (Kubernetes 리소스 처리)
+
+#### `c2z-cli.py`
+- **역할**: 시나리오 관리를 위한 Python CLI 도구
+- **주요 명령어**:
+  - `list`: 사용 가능한 시나리오 목록 표시
+  - `deploy <scenario-id>`: 시나리오 활성화 (Helm values 업데이트)
+  - `delete <scenario-id>`: 시나리오 비활성화
+  - `status`: 전체 시스템 상태 확인
+  - `logs <scenario-id>`: 시나리오 로그 조회
+- **동작 방식**:
+  - Monolithic Helm 차트 구조 사용
+  - `helm upgrade --reuse-values --set scenarios.<name>.enabled=true/false` 방식으로 시나리오 토글
+  - `kubectl` 명령어를 통한 상태 조회 및 로그 확인
+
+#### `c2z` (래퍼 스크립트)
+- **역할**: Python 가상환경을 자동으로 활성화하고 `c2z-cli.py` 실행
+- **생성**: `install.sh`에 의해 자동 생성
+- **내용**:
+  ```bash
+  #!/bin/bash
+  source $(dirname "$0")/.venv/bin/activate
+  python3 $(dirname "$0")/c2z-cli.py "$@"
+  ```
+
+---
+
+### Helm Chart 구조
+
+#### `charts/c2z/Chart.yaml`
+- **역할**: Helm 차트 메타데이터 정의
+- **내용**:
+  - 차트 이름: `c2z`
+  - 버전: `0.1.0`
+  - 앱 버전: `1.0.0`
+  - 타입: `application`
+
+#### `charts/c2z/values.yaml`
+- **역할**: 차트의 기본 설정 값 정의
+- **주요 섹션**:
+  - `global`: 공통 설정 (이미지 레지스트리, Pull Policy)
+  - `attacker`: Kali Linux 공격자 환경 설정
+    - 이미지, 리소스 제한, 영구 스토리지 설정
+  - `scenarios`: 시나리오별 활성화 플래그 및 설정
+    - `webVuln.enabled`: Web 취약점 시나리오 활성화 여부
+    - `containerEscape.enabled`: Container Escape 시나리오
+    - `networkAttack.enabled`: Network Attack 시나리오
+  - `monitoring`: Prometheus, Grafana, Loki 설정
+  - `networkPolicies`: 네트워크 격리 정책 활성화 여부
+
+#### `charts/c2z/templates/namespaces.yaml`
+- **역할**: Kubernetes 네임스페이스 생성
+- **생성 네임스페이스**:
+  - `c2z-system`: 공격자 환경 및 모니터링 스택
+  - `scenario-web-vuln`: Web 취약점 시나리오
+  - `scenario-container-escape`: Container Escape 시나리오
+  - `scenario-network-attack`: Network Attack 시나리오
+
+#### `charts/c2z/templates/network-policies.yaml`
+- **역할**: 네트워크 격리 정책 정의
+- **보안 기능**:
+  - 시나리오 간 네트워크 격리
+  - 기본 Deny 정책 (명시적 허용만 통신 가능)
+  - 공격자 환경에서 시나리오로의 접근 허용
+
+#### `charts/c2z/templates/resource-quotas.yaml`
+- **역할**: 네임스페이스별 리소스 제한
+- **제한 항목**:
+  - CPU, 메모리 요청/제한
+  - Pod 개수 제한
+  - 리소스 남용 방지
+
+---
+
+### 공격자 환경 (Attacker Zone)
+
+#### `attacker-zone/kali-deployment.yaml`
+- **역할**: Kali Linux 공격자 Pod 배포
+- **특징**:
+  - 이미지: `kalilinux/kali-rolling:latest`
+  - 리소스: 2Gi RAM, 1 vCPU (요청) / 4Gi RAM, 2 vCPU (제한)
+  - 영구 스토리지 마운트 (`/root`)
+  - 네트워크 도구 및 침투 테스트 도구 사전 설치
+
+#### `attacker-zone/kali-pvc.yaml`
+- **역할**: Kali 환경의 영구 스토리지 볼륨 클레임
+- **용량**: 20Gi
+- **용도**: 공격 스크립트, 결과 저장
+
+#### `attacker-zone/kali-service.yaml`
+- **역할**: Kali Pod에 대한 서비스 노출
+- **타입**: ClusterIP (내부 접근)
+
+---
+
+### 모니터링 스택
+
+#### `monitoring/prometheus-deployment.yaml`
+- **역할**: 메트릭 수집 및 저장
+- **기능**:
+  - Kubernetes 클러스터 메트릭 수집
+  - 시나리오 Pod 메트릭 수집
+  - 7일 데이터 보존
+  - 10Gi 스토리지
+
+#### `monitoring/grafana-deployment.yaml`
+- **역할**: 메트릭 시각화 대시보드
+- **기능**:
+  - Prometheus 데이터 소스 연동
+  - 실시간 대시보드
+  - 기본 관리자 계정: `admin/admin`
+
+#### `monitoring/loki-deployment.yaml`
+- **역할**: 로그 수집 및 저장
+- **기능**:
+  - 모든 Pod 로그 수집
+  - Grafana와 연동하여 로그 조회
+  - 공격 패턴 분석 지원
+
+---
+
+### 시나리오: Web 취약점 (web-vuln)
+
+#### `scenarios/web-vuln/dvwa-deployment.yaml`
+- **역할**: DVWA (Damn Vulnerable Web Application) 배포
+- **이미지**: `vulnerables/web-dvwa:latest`
+- **취약점**:
+  - SQL Injection
+  - XSS (Cross-Site Scripting)
+  - CSRF (Cross-Site Request Forgery)
+  - Command Injection
+  - File Upload 취약점
+- **난이도**: 초급 ~ 중급
+
+#### `scenarios/web-vuln/dvwa-service.yaml`
+- **역할**: DVWA 서비스 노출
+- **포트**: 80 (HTTP)
+- **접속**: Port-forward 또는 NodePort를 통한 접근
+
+#### `scenarios/web-vuln/juiceshop-deployment.yaml`
+- **역할**: OWASP Juice Shop 배포
+- **이미지**: `bkimminich/juice-shop:latest`
+- **취약점**:
+  - OWASP Top 10 전체 취약점
+  - 100+ 개의 보안 챌린지
+  - 실전적인 웹 애플리케이션 보안 학습
+
+#### `scenarios/web-vuln/juiceshop-service.yaml`
+- **역할**: Juice Shop 서비스 노출
+- **포트**: 3000 (HTTP)
+
+---
+
+### 문서 및 연구 자료
+
+#### `scenarios/web-vuln/README.md`
+- **역할**: Web 취약점 시나리오 상세 설명
+- **내용**:
+  - 환경 스펙 (OS, 언어, 웹서버, DB)
+  - 소스 코드 및 재현 방법
+  - 배포 구조 설명
+  - 향후 커스터마이징 계획
+
+#### `research/` 디렉토리
+- **역할**: 취약점 연구 자료 저장소
+- **구조**:
+  - `broken-access-control/`: 접근 제어 취약점 연구
+  - `injection/`: 인젝션 공격 연구
+  - `supply-chain/`: 공급망 공격 연구
+  - `template.md`: 연구 문서 작성 템플릿
+
+---
+
+## 시스템 동작 흐름
+
+### 1. 설치 단계
+```
+install.sh 실행
+  ↓
+Python 가상환경 생성 (.venv)
+  ↓
+시스템 요구사항 검증
+  ↓
+Kubernetes 클러스터 설치 (K3s/k3d)
+  ↓
+Helm 설치
+  ↓
+c2z Helm 차트 배포 (c2z-system 네임스페이스)
+  ↓
+CLI 래퍼 스크립트 생성 (./c2z)
+```
+
+### 2. 시나리오 배포 단계
+```
+./c2z deploy web-vuln 실행
+  ↓
+c2z-cli.py의 deploy() 함수 호출
+  ↓
+helm upgrade c2z ./charts/c2z --set scenarios.webVuln.enabled=true
+  ↓
+Helm이 values.yaml 업데이트
+  ↓
+Kubernetes가 변경사항 감지
+  ↓
+scenario-web-vuln 네임스페이스에 Pod 생성
+  ↓
+DVWA, Juice Shop 컨테이너 실행
+  ↓
+서비스 노출 및 접속 정보 출력
+```
+
+### 3. 공격 실습 단계
+```
+Kali Pod 접속 (kubectl exec)
+  ↓
+네트워크 정책에 따라 시나리오 접근 허용
+  ↓
+공격 도구 실행 (nmap, sqlmap, burpsuite 등)
+  ↓
+취약점 탐지 및 익스플로잇
+  ↓
+Prometheus/Loki가 메트릭 및 로그 수집
+  ↓
+Grafana 대시보드에서 실시간 모니터링
+```
+
+---
+
+## 학습 경로
+
+1. **초급**: Web 취약점 시나리오 (`web-vuln`)
+   - DVWA로 기본 웹 보안 개념 학습
+   - Juice Shop으로 실전 웹 애플리케이션 보안 실습
+
+2. **중급**: Container Escape 시나리오 (구현 예정)
+   - Privileged Pod 탈출 기법
+   - Docker Socket 마운트 악용
+
+3. **중급**: Network Attack 시나리오 (구현 예정)
+   - ARP Spoofing
+   - MITM (Man-in-the-Middle) 공격
+   - 서비스 거부 공격 (DoS)
+
+---
+
+## 트러블슈팅
+
+### 문제: Pod가 Pending 상태
+```bash
+# 원인 확인
+kubectl describe pod <pod-name> -n <namespace>
+
+# 리소스 부족 시 values.yaml에서 리소스 제한 조정
+helm upgrade c2z ./charts/c2z --set attacker.kali.resources.requests.memory=1Gi
+```
+
+### 문제: 서비스 접속 불가
+```bash
+# 서비스 상태 확인
+kubectl get svc -n scenario-web-vuln
+
+# Port-forward 설정
+kubectl port-forward -n scenario-web-vuln svc/dvwa 8080:80
+```
+
+### 문제: Helm 배포 실패
+```bash
+# Helm 릴리스 상태 확인
+helm list -n c2z-system
+
+# 롤백
+helm rollback c2z -n c2z-system
+
+# 완전 재설치
+helm uninstall c2z -n c2z-system
+./install.sh
+```
+
+---
+
+## 추가 정보
+
+- **라이선스**: Apache 2.0
+- **기여 방법**: `.github/PULL_REQUEST_TEMPLATE.md` 참조
+- **이슈 리포트**: GitHub Issues 사용

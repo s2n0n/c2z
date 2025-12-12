@@ -4,3 +4,10 @@
 .cursor
 .idea
 .vscode
+.DS_Store
+
+
+.venv
+
+# k3d
+

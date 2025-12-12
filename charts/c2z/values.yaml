@@ -1,0 +1,54 @@
+# c2z Helm Chart Values
+
+global:
+  imageRegistry: docker.io
+  imagePullPolicy: IfNotPresent
+
+# 공격자 환경
+attacker:
+  enabled: true
+  kali:
+    image: kalilinux/kali-rolling:latest
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "1000m"
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
+    persistence:
+      enabled: true
+      size: 20Gi
+
+# 시나리오 설정
+scenarios:
+  webVuln:
+    enabled: true
+    dvwa:
+      image: vulnerables/web-dvwa:latest
+      replicas: 1
+    juiceShop:
+      image: bkimminich/juice-shop:latest
+      replicas: 1
+
+  containerEscape:
+    enabled: true
+
+  networkAttack:
+    enabled: true
+
+# 모니터링 스택
+monitoring:
+  enabled: true
+  prometheus:
+    retention: 7d
+    storage: 10Gi
+  grafana:
+    adminPassword: admin
+  loki:
+    enabled: true
+
+# 네트워크 정책
+networkPolicies:
+  enabled: true
+  defaultDeny: true
