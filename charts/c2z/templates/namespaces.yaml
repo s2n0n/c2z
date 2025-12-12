@@ -50,3 +50,13 @@ metadata:
   labels:
     purpose: observability
     c2z.io/type: infrastructure
+
+---
+# Research 재현 시뮬레이션 환경 영역
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation
+  labels:
+    purpose: simulation
+    c2z.io/type: infrastructure

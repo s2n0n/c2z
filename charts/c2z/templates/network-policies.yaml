@@ -53,3 +53,23 @@ spec:
     ports:
     - protocol: TCP
       port: 9090  # Prometheus
+
+# simulation namespace 메트릭 수집 허용
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-egress
+  namespace: simulation
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          purpose: observability
+    ports:
+    - protocol: TCP
+      port: 9090  # Prometheus
+
