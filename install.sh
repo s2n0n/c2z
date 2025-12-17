@@ -98,9 +98,25 @@ install_k8s() {
                 --agents 1 \
                 --k3s-arg "--disable=traefik@server:*" \
                 --wait
-
         fi
-        k3d kubeconfig merge c2z --kubeconfig-switch-context
+
+        # Force merge to default config and set context
+        echo "   Merging kubeconfig..."
+        mkdir -p ~/.kube
+        k3d kubeconfig merge c2z --output ~/.kube/config --kubeconfig-switch-context
+        
+        echo "   Setting context..."
+        kubectl config use-context k3d-c2z || echo "   ⚠️ Could not set context to k3d-c2z"
+
+        # Wait for cluster to be responsive
+        echo "   Waiting for cluster API..."
+        for i in {1..10}; do
+            if kubectl cluster-info &> /dev/null; then
+                break
+            fi
+            echo "   ... waiting for API server ($i/10)"
+            sleep 3
+        done
         
     elif [[ "$OS_TYPE" == "Linux" ]]; then
         # Linux -> k3s (Native)
@@ -188,6 +204,14 @@ install_helm
 # 4.5 Setup Registry Secret (Interactive)
 setup_registry_secret() {
     echo -e "${GREEN}🔑 Checking Registry Credentials...${NC}"
+
+    # Load from .env or .env.local if present
+    if [ -f .env.local ]; then source .env.local; fi
+    if [ -f .env ]; then source .env; fi
+
+    # Support uppercase variable names from env file
+    [ -n "$GH_USER" ] && gh_user="$GH_USER"
+    [ -n "$GH_TOKEN" ] && gh_token="$GH_TOKEN"
     
     # Ensure namespace exists
     kubectl create namespace c2z-system --dry-run=client -o yaml | kubectl apply -f -
@@ -197,11 +221,24 @@ setup_registry_secret() {
     else
         echo -e "${RED}⚠️  Secret 'ghcr-secret' not found in c2z-system.${NC}"
         echo "   This is required for private GHCR images."
-        read -p "   Do you want to create it now? (y/n): " answer < /dev/tty
+
+        # If credentials are provided via env, auto-confirm
+        if [ -n "$gh_user" ] && [ -n "$gh_token" ]; then
+            echo "   ✅ Credentials found in environment/variables."
+            answer="y"
+        else
+            read -p "   Do you want to create it now? (y/n): " answer < /dev/tty
+        fi
+
         if [[ "$answer" =~ ^[Yy]$ ]]; then
-            read -p "   GitHub Username: " gh_user < /dev/tty
-            read -sp "   GitHub PAT Token: " gh_token < /dev/tty
-            echo ""
+            if [ -z "$gh_user" ]; then
+                read -p "   GitHub Username: " gh_user < /dev/tty
+            fi
+            if [ -z "$gh_token" ]; then
+                read -sp "   GitHub PAT Token: " gh_token < /dev/tty
+                echo ""
+            fi
+
             kubectl create secret docker-registry ghcr-secret \
                 --docker-server=ghcr.io \
                 --docker-username="$gh_user" \
@@ -211,6 +248,15 @@ setup_registry_secret() {
         else
             echo "   Skipping secret creation. Deployments may fail if images are private."
         fi
+    fi
+
+    # Replicate secret to simulation namespace
+    if kubectl get secret ghcr-secret -n c2z-system &> /dev/null; then
+         kubectl create namespace simulation --dry-run=client -o yaml | kubectl apply -f - > /dev/null
+         if ! kubectl get secret ghcr-secret -n simulation &> /dev/null; then
+             echo "   Replicating 'ghcr-secret' to 'simulation' namespace..."
+             kubectl get secret ghcr-secret -n c2z-system -o yaml | sed 's/namespace: c2z-system/namespace: simulation/' | kubectl apply -f - > /dev/null
+         fi
     fi
 }
 
