@@ -184,6 +184,37 @@ setup_venv
 check_requirements
 install_k8s
 install_helm
+
+# 4.5 Setup Registry Secret (Interactive)
+setup_registry_secret() {
+    echo -e "${GREEN}🔑 Checking Registry Credentials...${NC}"
+    
+    # Ensure namespace exists
+    kubectl create namespace c2z-system --dry-run=client -o yaml | kubectl apply -f -
+    
+    if kubectl get secret ghcr-secret -n c2z-system &> /dev/null; then
+        echo "   Secret 'ghcr-secret' found."
+    else
+        echo -e "${RED}⚠️  Secret 'ghcr-secret' not found in c2z-system.${NC}"
+        echo "   This is required for private GHCR images."
+        read -p "   Do you want to create it now? (y/n): " answer < /dev/tty
+        if [[ "$answer" =~ ^[Yy]$ ]]; then
+            read -p "   GitHub Username: " gh_user < /dev/tty
+            read -sp "   GitHub PAT Token: " gh_token < /dev/tty
+            echo ""
+            kubectl create secret docker-registry ghcr-secret \
+                --docker-server=ghcr.io \
+                --docker-username="$gh_user" \
+                --docker-password="$gh_token" \
+                --namespace=c2z-system
+            echo "   ✅ Secret created."
+        else
+            echo "   Skipping secret creation. Deployments may fail if images are private."
+        fi
+    fi
+}
+
+setup_registry_secret
 deploy_c2z
 create_wrapper
 

@@ -3,6 +3,8 @@
 global:
   imageRegistry: docker.io
   imagePullPolicy: IfNotPresent
+  imagePullSecrets:
+    - name: ghcr-secret
 
 # 공격자 환경
 attacker:
