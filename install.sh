@@ -251,8 +251,15 @@ setup_registry_secret() {
     fi
 
     # Replicate secret to simulation namespace
-    if kubectl get secret ghcr-secret -n c2z-system &> /dev/null; then
-         kubectl create namespace simulation --dry-run=client -o yaml | kubectl apply -f - > /dev/null
+    # Replicate secret to simulation namespace if it exists (created by Helm later)
+    # or we can create the secret in a way that doesn't conflict. 
+    # Better approach: Let Helm create the namespace, or use a post-install hook?
+    # For now, let's just create the secret if the namespace exists, but NOT create the namespace itself here.
+    # Actually, to support the secret being there for image pull, we might need to let Helm create the secret.
+    # BUT, if we want to copy it:
+    
+    # Check if namespace exists, if NOT, do NOT create it to avoid Helm conflict.
+    if kubectl get namespace simulation &> /dev/null; then
          if ! kubectl get secret ghcr-secret -n simulation &> /dev/null; then
              echo "   Replicating 'ghcr-secret' to 'simulation' namespace..."
              kubectl get secret ghcr-secret -n c2z-system -o yaml | sed 's/namespace: c2z-system/namespace: simulation/' | kubectl apply -f - > /dev/null
