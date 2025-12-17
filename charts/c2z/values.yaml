@@ -1,11 +1,15 @@
 # c2z Helm Chart Values
 
 global:
-  imageRegistry: docker.io
+  imageRegistry: ghcr.io
   imagePullPolicy: IfNotPresent
   imagePullSecrets:
     - name: ghcr-secret
 
+serviceAccount:
+  create: true
+  name: c2z
+  
 # 공격자 환경
 attacker:
   enabled: true
