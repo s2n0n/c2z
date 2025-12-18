@@ -13,3 +13,5 @@
 
 # simulations envs
 .envs
+# Temp files
+*.temp.*
