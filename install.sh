@@ -98,9 +98,25 @@ install_k8s() {
                 --agents 1 \
                 --k3s-arg "--disable=traefik@server:*" \
                 --wait
-
         fi
-        k3d kubeconfig merge c2z --kubeconfig-switch-context
+
+        # Force merge to default config and set context
+        echo "   Merging kubeconfig..."
+        mkdir -p ~/.kube
+        k3d kubeconfig merge c2z --output ~/.kube/config --kubeconfig-switch-context
+        
+        echo "   Setting context..."
+        kubectl config use-context k3d-c2z || echo "   ⚠️ Could not set context to k3d-c2z"
+
+        # Wait for cluster to be responsive
+        echo "   Waiting for cluster API..."
+        for i in {1..10}; do
+            if kubectl cluster-info &> /dev/null; then
+                break
+            fi
+            echo "   ... waiting for API server ($i/10)"
+            sleep 3
+        done
         
     elif [[ "$OS_TYPE" == "Linux" ]]; then
         # Linux -> k3s (Native)
@@ -184,6 +200,74 @@ setup_venv
 check_requirements
 install_k8s
 install_helm
+
+# 4.5 Setup Registry Secret (Interactive)
+setup_registry_secret() {
+    echo -e "${GREEN}🔑 Checking Registry Credentials...${NC}"
+
+    # Load from .env or .env.local if present
+    if [ -f .env.local ]; then source .env.local; fi
+    if [ -f .env ]; then source .env; fi
+
+    # Support uppercase variable names from env file
+    [ -n "$GH_USER" ] && gh_user="$GH_USER"
+    [ -n "$GH_TOKEN" ] && gh_token="$GH_TOKEN"
+    
+    # Ensure namespace exists
+    kubectl create namespace c2z-system --dry-run=client -o yaml | kubectl apply -f -
+    
+    if kubectl get secret ghcr-secret -n c2z-system &> /dev/null; then
+        echo "   Secret 'ghcr-secret' found."
+    else
+        echo -e "${RED}⚠️  Secret 'ghcr-secret' not found in c2z-system.${NC}"
+        echo "   This is required for private GHCR images."
+
+        # If credentials are provided via env, auto-confirm
+        if [ -n "$gh_user" ] && [ -n "$gh_token" ]; then
+            echo "   ✅ Credentials found in environment/variables."
+            answer="y"
+        else
+            read -p "   Do you want to create it now? (y/n): " answer < /dev/tty
+        fi
+
+        if [[ "$answer" =~ ^[Yy]$ ]]; then
+            if [ -z "$gh_user" ]; then
+                read -p "   GitHub Username: " gh_user < /dev/tty
+            fi
+            if [ -z "$gh_token" ]; then
+                read -sp "   GitHub PAT Token: " gh_token < /dev/tty
+                echo ""
+            fi
+
+            kubectl create secret docker-registry ghcr-secret \
+                --docker-server=ghcr.io \
+                --docker-username="$gh_user" \
+                --docker-password="$gh_token" \
+                --namespace=c2z-system
+            echo "   ✅ Secret created."
+        else
+            echo "   Skipping secret creation. Deployments may fail if images are private."
+        fi
+    fi
+
+    # Replicate secret to simulation namespace
+    # Replicate secret to simulation namespace if it exists (created by Helm later)
+    # or we can create the secret in a way that doesn't conflict. 
+    # Better approach: Let Helm create the namespace, or use a post-install hook?
+    # For now, let's just create the secret if the namespace exists, but NOT create the namespace itself here.
+    # Actually, to support the secret being there for image pull, we might need to let Helm create the secret.
+    # BUT, if we want to copy it:
+    
+    # Check if namespace exists, if NOT, do NOT create it to avoid Helm conflict.
+    if kubectl get namespace simulation &> /dev/null; then
+         if ! kubectl get secret ghcr-secret -n simulation &> /dev/null; then
+             echo "   Replicating 'ghcr-secret' to 'simulation' namespace..."
+             kubectl get secret ghcr-secret -n c2z-system -o yaml | sed 's/namespace: c2z-system/namespace: simulation/' | kubectl apply -f - > /dev/null
+         fi
+    fi
+}
+
+setup_registry_secret
 deploy_c2z
 create_wrapper
 
