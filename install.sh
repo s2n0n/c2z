@@ -250,25 +250,31 @@ setup_registry_secret() {
         fi
     fi
 
-    # Replicate secret to simulation namespace
-    # Replicate secret to simulation namespace if it exists (created by Helm later)
-    # or we can create the secret in a way that doesn't conflict. 
-    # Better approach: Let Helm create the namespace, or use a post-install hook?
-    # For now, let's just create the secret if the namespace exists, but NOT create the namespace itself here.
-    # Actually, to support the secret being there for image pull, we might need to let Helm create the secret.
-    # BUT, if we want to copy it:
+}
+
+# 6. Replicate Secret to Simulation Namespace (After Helm Deployment)
+replicate_secret_to_simulation() {
+    echo -e "${GREEN}🔑 Replicating secrets to simulation namespace...${NC}"
     
-    # Check if namespace exists, if NOT, do NOT create it to avoid Helm conflict.
+    # Check if simulation namespace exists (created by Helm)
     if kubectl get namespace simulation &> /dev/null; then
-         if ! kubectl get secret ghcr-secret -n simulation &> /dev/null; then
-             echo "   Replicating 'ghcr-secret' to 'simulation' namespace..."
-             kubectl get secret ghcr-secret -n c2z-system -o yaml | sed 's/namespace: c2z-system/namespace: simulation/' | kubectl apply -f - > /dev/null
-         fi
+        if ! kubectl get secret ghcr-secret -n simulation &> /dev/null; then
+            echo "   Copying 'ghcr-secret' to 'simulation' namespace..."
+            kubectl get secret ghcr-secret -n c2z-system -o yaml | \
+                sed 's/namespace: c2z-system/namespace: simulation/' | \
+                kubectl apply -f - > /dev/null
+            echo "   ✅ Secret replicated to simulation namespace"
+        else
+            echo "   Secret already exists in simulation namespace"
+        fi
+    else
+        echo "   ⚠️  Simulation namespace not found (will be created on first scenario deploy)"
     fi
 }
 
 setup_registry_secret
 deploy_c2z
+replicate_secret_to_simulation
 create_wrapper
 
 echo ""
