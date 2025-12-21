@@ -1,0 +1,39 @@
+name: Helm Publish
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'charts/**'
+
+permissions:
+  contents: write
+
+jobs:
+  helm-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.11.1
+
+      - name: Package Chart
+        run: |
+          helm package charts/c2z -d docs
+
+      - name: Update Index
+        run: |
+          helm repo index docs --url https://s2n0n.github.io/c2z/ --merge docs/index.yaml
+
+      - name: Commit and Push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/
+          git commit -m "Update Helm repository [skip ci]" || echo "No changes to commit"
+          git push
