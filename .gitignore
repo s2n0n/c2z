@@ -15,3 +15,5 @@
 .envs
 # Temp files
 *.temp.*
+
+*.pyc
