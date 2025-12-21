@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  c2z:
+  - apiVersion: v2
+    appVersion: "1.0.0"
+    created: "2025-12-21T09:14:36Z"
+    description: A Helm chart for the c2z penetration testing lab environment
+    digest: 35d699de1de094e1a86cc9e35846af4183d561f66d2cf9416a0e6fd2b9e3a631
+    name: c2z
+    type: application
+    urls:
+    - https://s2n0n.github.io/c2z/c2z-0.1.0.tgz
+    version: 0.1.0
+generated: "2025-12-21T09:14:36Z"
