@@ -252,29 +252,31 @@ setup_registry_secret() {
 
 }
 
-# 6. Replicate Secret to Simulation Namespace (After Helm Deployment)
+# 6. Replicate Secret to Simulation Namespace
 replicate_secret_to_simulation() {
     echo -e "${GREEN}🔑 Replicating secrets to simulation namespace...${NC}"
     
-    # Check if simulation namespace exists (created by Helm)
-    if kubectl get namespace simulation &> /dev/null; then
-        if ! kubectl get secret ghcr-secret -n simulation &> /dev/null; then
-            echo "   Copying 'ghcr-secret' to 'simulation' namespace..."
+    # Ensure simulation namespace exists
+    kubectl create namespace simulation --dry-run=client -o yaml | kubectl apply -f -
+    
+    if ! kubectl get secret ghcr-secret -n simulation &> /dev/null; then
+        echo "   Copying 'ghcr-secret' to 'simulation' namespace..."
+        if kubectl get secret ghcr-secret -n c2z-system &> /dev/null; then
             kubectl get secret ghcr-secret -n c2z-system -o yaml | \
                 sed 's/namespace: c2z-system/namespace: simulation/' | \
                 kubectl apply -f - > /dev/null
             echo "   ✅ Secret replicated to simulation namespace"
         else
-            echo "   Secret already exists in simulation namespace"
+            echo "   ⚠️  'ghcr-secret' not found in c2z-system. Skipping replication."
         fi
     else
-        echo "   ⚠️  Simulation namespace not found (will be created on first scenario deploy)"
+        echo "   Secret already exists in simulation namespace"
     fi
 }
 
 setup_registry_secret
-deploy_c2z
 replicate_secret_to_simulation
+deploy_c2z
 create_wrapper
 
 echo ""
