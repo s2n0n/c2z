@@ -207,7 +207,7 @@ setup_registry_secret() {
 
     # Load from .env or .env.local if present
     if [ -f .env.local ]; then source .env.local; fi
-    if [ -f .env ]; then source .env; fi
+    # if [ -f .env ]; then source .env; fi
 
     # Support uppercase variable names from env file
     [ -n "$GH_USER" ] && gh_user="$GH_USER"
