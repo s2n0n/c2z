@@ -256,21 +256,6 @@ setup_registry_secret() {
 replicate_secret_to_simulation() {
     echo -e "${GREEN}🔑 Replicating secrets to simulation namespace...${NC}"
     
-    # Ensure simulation namespace exists with Helm ownership metadata
-    cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: simulation
-  labels:
-    purpose: simulation
-    c2z.io/type: infrastructure
-    app.kubernetes.io/managed-by: Helm
-  annotations:
-    meta.helm.sh/release-name: c2z
-    meta.helm.sh/release-namespace: c2z-system
-EOF
-    
     if ! kubectl get secret ghcr-secret -n simulation &> /dev/null; then
         echo "   Copying 'ghcr-secret' to 'simulation' namespace..."
         if kubectl get secret ghcr-secret -n c2z-system &> /dev/null; then
@@ -298,4 +283,3 @@ echo "Use the wrapper script to manage the lab:"
 echo "  ./c2z list"
 echo "  ./c2z deploy web-vuln"
 echo ""
-
