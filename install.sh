@@ -272,8 +272,8 @@ replicate_secret_to_simulation() {
 }
 
 setup_registry_secret
-deploy_c2z
 replicate_secret_to_simulation
+deploy_c2z
 create_wrapper
 
 echo ""
