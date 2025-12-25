@@ -171,7 +171,7 @@ deploy_c2z() {
             --wait \
             --timeout 10m
     else
-        helm repo add c2z https://c2z.github.io/charts
+        helm repo add c2z https://s2n0n.github.io/c2z/
         helm repo update
         helm upgrade --install c2z c2z/c2z \
             --namespace c2z-system \
