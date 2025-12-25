@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'charts/**'
 
 permissions:
   contents: read
@@ -30,7 +28,11 @@ jobs:
 
       - name: Update Index
         run: |
-          helm repo index docs --url https://s2n0n.github.io/c2z/ --merge docs/index.yaml
+          if [ -f docs/index.yaml ]; then
+            helm repo index docs --url https://s2n0n.github.io/c2z/ --merge docs/index.yaml
+          else
+            helm repo index docs --url https://s2n0n.github.io/c2z/
+          fi
 
       - name: Setup Pages
         id: pages
@@ -39,7 +41,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: 'docs'
+          path: "docs"
 
   deploy:
     environment:
