@@ -16,7 +16,7 @@ ARCH=$(uname -m)
 # 0. Python Virtual Environment Setup (New Requirement)
 setup_venv() {
     echo -e "${GREEN}� Setting up Python Virtual Environment (.venv)...${NC}"
-    
+
     if ! command -v python3 &> /dev/null; then
         echo -e "${RED}❌ python3 is required but not found.${NC}"
         exit 1
@@ -31,14 +31,14 @@ setup_venv() {
 
     # Activate and Install Requirements
     source .venv/bin/activate
-    
+
     if [ -f "requirements.txt" ]; then
         echo "   Installing dependencies..."
         pip install -r requirements.txt | grep -v 'already satisfied' || true
     else
         echo -e "${RED}⚠️  requirements.txt not found.${NC}"
     fi
-    
+
     echo "✅ Virtual Environment Ready"
 }
 
@@ -77,7 +77,7 @@ check_requirements() {
 # 2. Kubernetes Cluster Setup (Multi-platform)
 install_k8s() {
     echo -e "${GREEN}🔧 Setting up Kubernetes Cluster...${NC}"
-    
+
     if [[ "$OS_TYPE" == "Darwin" ]]; then
         # macOS -> k3d
         if ! command -v k3d &> /dev/null; then
@@ -104,7 +104,7 @@ install_k8s() {
         echo "   Merging kubeconfig..."
         mkdir -p ~/.kube
         k3d kubeconfig merge c2z --output ~/.kube/config --kubeconfig-switch-context
-        
+
         echo "   Setting context..."
         kubectl config use-context k3d-c2z || echo "   ⚠️ Could not set context to k3d-c2z"
 
@@ -117,7 +117,7 @@ install_k8s() {
             echo "   ... waiting for API server ($i/10)"
             sleep 3
         done
-        
+
     elif [[ "$OS_TYPE" == "Linux" ]]; then
         # Linux -> k3s (Native)
         if command -v k3s &> /dev/null; then
@@ -129,7 +129,7 @@ install_k8s() {
                 --disable traefik \
                 --disable servicelb
         fi
-        
+
         # Setup kubeconfig for user
         mkdir -p ~/.kube
         if [ -f /etc/rancher/k3s/k3s.yaml ] && [ ! -f ~/.kube/config ]; then
@@ -140,7 +140,7 @@ install_k8s() {
         echo -e "${RED}❌ Unsupported OS: $OS_TYPE${NC}"
         exit 1
     fi
-    
+
     echo "✅ Kubernetes Cluster Ready"
 }
 
@@ -157,7 +157,7 @@ install_helm() {
 # 4. Deploy c2z with Helm
 deploy_c2z() {
     echo -e "${GREEN}🎯 Deploying c2z stack...${NC}"
-    
+
     # Check if cluster is reachable
     if ! kubectl cluster-info &> /dev/null; then
         echo -e "${RED}❌ Kubernetes cluster is not reachable. Check kubeconfig.${NC}"
@@ -179,7 +179,7 @@ deploy_c2z() {
             --wait \
             --timeout 10m
     fi
-    
+
     echo "✅ c2z Deployed"
 }
 
@@ -212,10 +212,10 @@ setup_registry_secret() {
     # Support uppercase variable names from env file
     [ -n "$GH_USER" ] && gh_user="$GH_USER"
     [ -n "$GH_TOKEN" ] && gh_token="$GH_TOKEN"
-    
+
     # Ensure namespace exists
     kubectl create namespace c2z-system --dry-run=client -o yaml | kubectl apply -f -
-    
+
     if kubectl get secret ghcr-secret -n c2z-system &> /dev/null; then
         echo "   Secret 'ghcr-secret' found."
     else
@@ -255,7 +255,20 @@ setup_registry_secret() {
 # 6. Replicate Secret to Simulation Namespace
 replicate_secret_to_simulation() {
     echo -e "${GREEN}🔑 Replicating secrets to simulation namespace...${NC}"
-    
+
+    # Ensure namespace exists before creating secret (with Helm adoption labels)
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: c2z
+    meta.helm.sh/release-namespace: c2z-system
+EOF
+
     if ! kubectl get secret ghcr-secret -n simulation &> /dev/null; then
         echo "   Copying 'ghcr-secret' to 'simulation' namespace..."
         if kubectl get secret ghcr-secret -n c2z-system &> /dev/null; then
