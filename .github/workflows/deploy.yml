@@ -158,32 +158,3 @@ jobs:
           files: dist/*.tgz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # PyPI 배포 (태그 push 시)
-  publish-pypi:
-    needs: quality-check
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-
-      - name: Build Python package
-        run: |
-          python -m pip install --upgrade pip
-          pip install build twine
-          python -m build
-      - name: Publish to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN_WON }}
-        run: |
-          twine upload dist/*
