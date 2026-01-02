@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*.*.*'
+  pull_request:
 
 permissions:
   contents: read
@@ -11,7 +14,57 @@ permissions:
   id-token: write
 
 jobs:
+  quality-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses : actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff black pytest
+
+      - name: Python lint (ruff)
+        run: ruff check .
+
+      - name: Python format check (black)
+        run: black --check .
+
+      - name: Python tests
+        run: pytest -q || true
+
+      # Shellcheck
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Shellcheck scripts
+        run: |
+          shellcheck install.sh
+          if [ -d scripts ]; then
+            find scripts -type f -name "*.sh" -print0 | xargs -0 -r shellcheck
+          fi
+
+      # Helm 검증
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Helm lint
+        run: helm lint charts/c2z
+
+# 이건 기존의 deploy.yml 내용
   build:
+    needs: quality-check
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -53,3 +106,55 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # Release 생성
+  create-release:
+    needs: quality-check
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Package Helm Chart for Release
+        run: |
+          mkdir -p dist
+          helm package charts/c2z -d dist
+
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          PREV_TAG=$(git describe --abbrev=0 --tags $(git rev-list --tags --skip=1 --max-count=1) 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            NOTES="## What's Changed\n\n$(git log --pretty=format:'- %s (%h)' --no-merges)"
+          else
+            NOTES="## What's Changed\n\n$(git log ${PREV_TAG}..HEAD --pretty=format:'- %s (%h)' --no-merges)"
+          fi
+          echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_version.outputs.TAG_NAME }}
+          name: Release ${{ steps.get_version.outputs.TAG_NAME }}
+          body: ${{ steps.release_notes.outputs.NOTES }}
+          files: dist/*.tgz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
