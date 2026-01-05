@@ -1,0 +1,16 @@
+{{- if .Values.scenarios.webVuln.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pcap-storage
+  namespace: scenario-web-vuln
+  labels:
+    app: traffic-analysis
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+{{- end }}

@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: packet-capture-script
+  namespace: scenario-web-vuln
+data:
+  capture.sh: |
+    #!/bin/sh
+    
+    INTERFACE=${INTERFACE:-eth0}
+    PCAP_DIR=${PCAP_DIR:-/pcaps}
+    ROTATION_SIZE=${ROTATION_SIZE:-50}
+    POD_NAME=${POD_NAME:-unknown}
+    
+    echo "[$(date)] Starting packet capture on $INTERFACE"
+    echo "[$(date)] Saving to $PCAP_DIR"
+    echo "[$(date)] Rotation size: ${ROTATION_SIZE}MB"
+    echo "[$(date)] Pod name: $POD_NAME"
+    
+    mkdir -p $PCAP_DIR/$POD_NAME
+    
+    exec tcpdump -i $INTERFACE \
+      -w $PCAP_DIR/$POD_NAME/capture-%Y%m%d-%H%M%S.pcap \
+      -C $ROTATION_SIZE \
+      -Z root \
+      -n \
+      -s0 \
+      -v

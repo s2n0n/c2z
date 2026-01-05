@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zeek-analyzer
+  namespace: scenario-web-vuln
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zeek
+  template:
+    metadata:
+      labels:
+        app: zeek
+    spec:
+      containers:
+      # Zeek 컨테이너
+      - name: zeek
+        image: zeek/zeek:7.0.0
+        command: ["/bin/sh", "/scripts/analyze.sh"]
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "2000m"
+            memory: "2Gi"
+        volumeMounts:
+        - name: pcap-storage
+          mountPath: /pcaps
+        - name: zeek-logs
+          mountPath: /zeek-logs
+        - name: scripts
+          mountPath: /scripts
+        livenessProbe:
+          exec:
+            command: ["pgrep", "-f", "analyze.sh"]
+          initialDelaySeconds: 30
+          periodSeconds: 60
+      
+      # Promtail Sidecar
+      - name: promtail
+        image: grafana/promtail:latest
+        args:
+        - -config.file=/etc/promtail/promtail.yaml
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
+        volumeMounts:
+        - name: zeek-logs
+          mountPath: /zeek-logs
+          readOnly: true
+        - name: promtail-config
+          mountPath: /etc/promtail
+      
+      volumes:
+      - name: scripts
+        configMap:
+          name: zeek-analyzer-script
+          defaultMode: 0755
+      - name: pcap-storage
+        persistentVolumeClaim:
+          claimName: pcap-storage
+      - name: zeek-logs
+        persistentVolumeClaim:
+          claimName: zeek-logs-pvc
+      - name: promtail-config
+        configMap:
+          name: zeek-promtail-config

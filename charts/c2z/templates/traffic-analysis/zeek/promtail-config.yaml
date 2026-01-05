@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zeek-promtail-config
+  namespace: scenario-web-vuln
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+    
+    positions:
+      filename: /tmp/positions.yaml
+    
+    clients:
+      - url: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
+    
+    scrape_configs:
+    # Zeek HTTP 로그
+    - job_name: zeek-http
+      static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: zeek
+          log_type: http
+          scenario: web-vuln
+          __path__: /zeek-logs/http*.log
+      
+      pipeline_stages:
+      - json:
+          expressions:
+            timestamp: ts
+            uid: uid
+            src_ip: id.orig_h
+            src_port: id.orig_p
+            dst_ip: id.resp_h
+            dst_port: id.resp_p
+            method: method
+            host: host
+            uri: uri
+            user_agent: user_agent
+            status_code: status_code
+      
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+      
+      - labels:
+          src_ip:
+          dst_ip:
+          method:
+          status_code:
+    
+    # Zeek Connection 로그
+    - job_name: zeek-conn
+      static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: zeek
+          log_type: connection
+          scenario: web-vuln
+          __path__: /zeek-logs/conn*.log
+      
+      pipeline_stages:
+      - json:
+          expressions:
+            timestamp: ts
+            uid: uid
+            src_ip: id.orig_h
+            dst_ip: id.resp_h
+            proto: proto
+            service: service
+            duration: duration
+            orig_bytes: orig_bytes
+            resp_bytes: resp_bytes
+      
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+      
+      - labels:
+          src_ip:
+          dst_ip:
+          proto:
