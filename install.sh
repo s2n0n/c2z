@@ -12,9 +12,10 @@ echo -e "${GREEN}🚀 init c2z environment...${NC}"
 
 OS_TYPE=$(uname -s)
 
+
 # 0. Python Virtual Environment Setup (New Requirement)
 setup_venv() {
-    echo -e "${GREEN}🐍 Setting up Python Virtual Environment (.venv)...${NC}"
+    echo -e "${GREEN}� Setting up Python Virtual Environment (.venv)...${NC}"
 
     if ! command -v python3 &> /dev/null; then
         echo -e "${RED}❌ python3 is required but not found.${NC}"
@@ -29,7 +30,7 @@ setup_venv() {
     fi
 
     # Activate and Install Requirements
-    # shellcheck source=/dev/null
+    # shellcheck disable=SC1091
     source .venv/bin/activate
 
     if [ -f "requirements.txt" ]; then
@@ -206,7 +207,7 @@ setup_registry_secret() {
     echo -e "${GREEN}🔑 Checking Registry Credentials...${NC}"
 
     # Load from .env or .env.local if present
-    # shellcheck source=/dev/null
+    # shellcheck disable=SC1091
     if [ -f .env.local ]; then source .env.local; fi
     # if [ -f .env ]; then source .env; fi
 
@@ -228,17 +229,14 @@ setup_registry_secret() {
             echo "   ✅ Credentials found in environment/variables."
             answer="y"
         else
-            # shellcheck disable=SC2162
             read -p "   Do you want to create it now? (y/n): " answer < /dev/tty
         fi
 
         if [[ "$answer" =~ ^[Yy]$ ]]; then
             if [ -z "$gh_user" ]; then
-                # shellcheck disable=SC2162
                 read -p "   GitHub Username: " gh_user < /dev/tty
             fi
             if [ -z "$gh_token" ]; then
-                # shellcheck disable=SC2162
                 read -sp "   GitHub PAT Token: " gh_token < /dev/tty
                 echo ""
             fi
