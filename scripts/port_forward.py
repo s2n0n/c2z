@@ -3,6 +3,7 @@ import json
 import time
 import socket
 
+
 def run_command(command):
     try:
         result = subprocess.run(
@@ -12,6 +13,7 @@ def run_command(command):
     except subprocess.CalledProcessError:
         # Don't print error here to avoid spamming if just checking
         return None
+
 
 def get_services():
     namespaces = ["c2z-system", "simulation"]
@@ -41,6 +43,7 @@ def get_services():
                 print(f"[WARN] Failed to parse JSON for namespace {ns}")
     return services
 
+
 def is_port_in_use(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(("localhost", port)) == 0
@@ -52,6 +55,7 @@ def get_available_port(start_port, used_ports):
     while port in used_ports or is_port_in_use(port):
         port += 1
     return port
+
 
 def main():
     print("🚀 c2z Cluster Port-Forwarding Script")
@@ -177,6 +181,7 @@ def main():
         for p in processes:
             p["proc"].terminate()
         print("✅ Done.")
+
 
 if __name__ == "__main__":
     main()

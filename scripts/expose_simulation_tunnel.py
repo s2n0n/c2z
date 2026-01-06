@@ -10,6 +10,7 @@ import signal
 # Global list to track processes for cleanup
 active_processes = []
 
+
 def run_command(command):
     try:
         result = subprocess.run(
@@ -18,6 +19,7 @@ def run_command(command):
         return result.stdout.strip()
     except subprocess.CalledProcessError:
         return None
+
 
 def get_simulation_services():
     namespace = "simulation"
@@ -48,6 +50,7 @@ def get_simulation_services():
 
     return services
 
+
 def is_port_in_use(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(("localhost", port)) == 0
@@ -58,6 +61,7 @@ def get_available_port(start_port, used_ports):
     while port in used_ports or is_port_in_use(port):
         port += 1
     return port
+
 
 def check_local_connection(port, retries=5):
     """
@@ -74,6 +78,7 @@ def check_local_connection(port, retries=5):
 
     print(f"   ❌ Failed to connect to localhost:{port} after {retries} retries.")
     return False
+
 
 def start_kubectl_port_forward(service, local_port):
     cmd = [
@@ -114,6 +119,7 @@ def start_kubectl_port_forward(service, local_port):
             f"[ERROR] Failed to start kubectl port-forward for {service['name']}: {e}"
         )
         return False
+
 
 def start_cloudflared_tunnel(service_name, local_port):
     # Determine host address for docker to access host
@@ -176,6 +182,7 @@ def start_cloudflared_tunnel(service_name, local_port):
         print(f"[ERROR] Failed to start cloudflared for {service_name}: {e}")
         return None
 
+
 def cleanup(signum, frame):
     print("\n\n🛑 Stopping all tunnels and port-forwards...")
     for proc in active_processes:
@@ -185,6 +192,7 @@ def cleanup(signum, frame):
             # Ideally we would track container IDs but --rm helps cleanup
     print("✅ Done.")
     sys.exit(0)
+
 
 def main():
     print("🚀 c2z Simulation Exposer (Cloudflare Tunnel)")
@@ -253,6 +261,7 @@ def main():
     # Keep main thread alive
     while True:
         time.sleep(1)
+
 
 if __name__ == "__main__":
     main()
