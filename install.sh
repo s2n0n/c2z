@@ -8,15 +8,18 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# shellcheck disable=SC3037
 echo -e "${GREEN}🚀 init c2z environment...${NC}"
 
 OS_TYPE=$(uname -s)
 
 # 0. Python Virtual Environment Setup (New Requirement)
 setup_venv() {
+    # shellcheck disable=SC3037
     echo -e "${GREEN}🐍 Setting up Python Virtual Environment (.venv)...${NC}"
 
     if ! command -v python3 &> /dev/null; then
+        # shellcheck disable=SC3037
         echo -e "${RED}❌ python3 is required but not found.${NC}"
         exit 1
     fi
@@ -36,6 +39,7 @@ setup_venv() {
         echo "   Installing dependencies..."
         pip install -r requirements.txt | grep -v 'already satisfied' || true
     else
+        # shellcheck disable=SC3037
         echo -e "${RED}⚠️  requirements.txt not found.${NC}"
     fi
 
@@ -44,6 +48,7 @@ setup_venv() {
 
 # 1. Prerequisites Check
 check_requirements() {
+    # shellcheck disable=SC3037
     echo -e "${GREEN}📋 Checking system requirements...${NC}"
 
     # RAM Check
@@ -56,16 +61,19 @@ check_requirements() {
     fi
 
     if [ "$total_ram" -lt 16 ]; then
+        # shellcheck disable=SC3037
         echo -e "${RED}⚠️  Warning: Less than 16GB RAM detected ($total_ram GB). Performance may be affected.${NC}"
     fi
 
     # Docker Check (Required for Mac/k3d, Recommended for others)
     if [[ "$OS_TYPE" == "Darwin" ]]; then
         if ! command -v docker &> /dev/null; then
+            # shellcheck disable=SC3037
             echo -e "${RED}❌ Docker is required on macOS for k3d.${NC}"
             exit 1
         fi
         if ! docker info &> /dev/null; then
+            # shellcheck disable=SC3037
             echo -e "${RED}❌ Docker daemon is not running.${NC}"
             exit 1
         fi
@@ -76,6 +84,7 @@ check_requirements() {
 
 # 2. Kubernetes Cluster Setup (Multi-platform)
 install_k8s() {
+    # shellcheck disable=SC3037
     echo -e "${GREEN}🔧 Setting up Kubernetes Cluster...${NC}"
 
     if [[ "$OS_TYPE" == "Darwin" ]]; then
@@ -137,6 +146,7 @@ install_k8s() {
             sudo chown "$USER:$USER" ~/.kube/config
         fi
     else
+        # shellcheck disable=SC3037
         echo -e "${RED}❌ Unsupported OS: $OS_TYPE${NC}"
         exit 1
     fi
@@ -146,6 +156,7 @@ install_k8s() {
 
 # 3. Helm Setup
 install_helm() {
+    # shellcheck disable=SC3037
     echo -e "${GREEN}📦 Checking Helm...${NC}"
     if ! command -v helm &> /dev/null; then
         echo "   Installing Helm..."
@@ -156,10 +167,12 @@ install_helm() {
 
 # 4. Deploy c2z with Helm
 deploy_c2z() {
+    # shellcheck disable=SC3037
     echo -e "${GREEN}🎯 Deploying c2z stack...${NC}"
 
     # Check if cluster is reachable
     if ! kubectl cluster-info &> /dev/null; then
+        # shellcheck disable=SC3037
         echo -e "${RED}❌ Kubernetes cluster is not reachable. Check kubeconfig.${NC}"
         exit 1
     fi
@@ -185,6 +198,7 @@ deploy_c2z() {
 
 # 5. Create c2z Wrapper Script
 create_wrapper() {
+    # shellcheck disable=SC3037
     echo -e "${GREEN}📝 Creating c2z wrapper script...${NC}"
     cat > c2z <<EOF
 #!/bin/bash
@@ -203,6 +217,7 @@ install_helm
 
 # 4.5 Setup Registry Secret (Interactive)
 setup_registry_secret() {
+    # shellcheck disable=SC3037
     echo -e "${GREEN}🔑 Checking Registry Credentials...${NC}"
 
     # Load from .env or .env.local if present
@@ -220,6 +235,7 @@ setup_registry_secret() {
     if kubectl get secret ghcr-secret -n c2z-system &> /dev/null; then
         echo "   Secret 'ghcr-secret' found."
     else
+        # shellcheck disable=SC3037
         echo -e "${RED}⚠️  Secret 'ghcr-secret' not found in c2z-system.${NC}"
         echo "   This is required for private GHCR images."
 
@@ -229,17 +245,17 @@ setup_registry_secret() {
             answer="y"
         else
             # shellcheck disable=SC2162
-            read -p "   Do you want to create it now? (y/n): " answer < /dev/tty
+            read -r -p "   Do you want to create it now? (y/n): " answer < /dev/tty
         fi
 
         if [[ "$answer" =~ ^[Yy]$ ]]; then
             if [ -z "$gh_user" ]; then
                 # shellcheck disable=SC2162
-                read -p "   GitHub Username: " gh_user < /dev/tty
+                read -r -p "   GitHub Username: " gh_user < /dev/tty
             fi
             if [ -z "$gh_token" ]; then
                 # shellcheck disable=SC2162
-                read -sp "   GitHub PAT Token: " gh_token < /dev/tty
+                read -r -s -p "   GitHub PAT Token: " gh_token < /dev/tty
                 echo ""
             fi
 
@@ -258,6 +274,7 @@ setup_registry_secret() {
 
 # 6. Replicate Secret to Simulation Namespace
 replicate_secret_to_simulation() {
+    # shellcheck disable=SC3037
     echo -e "${GREEN}🔑 Replicating secrets to simulation namespace...${NC}"
 
     # Ensure namespace exists before creating secret (with Helm adoption labels)
@@ -294,6 +311,7 @@ deploy_c2z
 create_wrapper
 
 echo ""
+# shellcheck disable=SC3037
 echo -e "${GREEN}🎉 Installation Complete!${NC}"
 echo ""
 echo "Use the wrapper script to manage the lab:"
