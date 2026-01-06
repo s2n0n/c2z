@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: packet-capture-script
-  namespace: scenario-web-vuln
+  namespace: traffic-analysis
 data:
   capture.sh: |
     #!/bin/sh

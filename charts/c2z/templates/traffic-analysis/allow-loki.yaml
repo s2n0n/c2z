@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-zeek-to-loki
-  namespace: scenario-web-vuln
+  namespace: traffic-analysis
   labels:
     app: traffic-analysis
 spec:

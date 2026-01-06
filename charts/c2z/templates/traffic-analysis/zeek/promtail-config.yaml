@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: zeek-promtail-config
-  namespace: scenario-web-vuln
+  namespace: traffic-analysis
 data:
   promtail.yaml: |
     server:
