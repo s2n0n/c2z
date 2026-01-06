@@ -5,6 +5,7 @@ import click
 import yaml
 from tabulate import tabulate
 
+
 def to_config_key(scenario_id: str) -> str | None:
     mapping = {
         "web-vuln": "webVuln",
@@ -13,9 +14,11 @@ def to_config_key(scenario_id: str) -> str | None:
     }
     return mapping.get(scenario_id)
 
+
 @click.group()
 def cli() -> None:
     """c2z CLI - Kubernetes 기반 침투 테스트 환경 관리"""
+
 
 @cli.command()
 def list() -> None:  # noqa: A001
@@ -66,6 +69,7 @@ def deploy(scenario_id: str) -> None:
     except subprocess.CalledProcessError as e:
         click.echo(f"❌ 배포 실패: {e}", err=True)
 
+
 @cli.command()
 @click.argument("scenario_id")
 def delete(scenario_id: str) -> None:
@@ -100,6 +104,7 @@ def delete(scenario_id: str) -> None:
             click.echo(f"✅ 시나리오 삭제 완료: {scenario_id}")
         except subprocess.CalledProcessError as e:
             click.echo(f"❌ 삭제 실패: {e}", err=True)
+
 
 @cli.command()
 def status() -> None:
