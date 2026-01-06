@@ -1,11 +1,11 @@
-import subprocess
 import json
-import time
-import sys
-import socket
-import threading
 import re
 import signal
+import socket
+import subprocess
+import sys
+import threading
+import time
 
 # Global list to track processes for cleanup
 active_processes = []
@@ -68,7 +68,7 @@ def check_local_connection(port, retries=5):
     Tries to connect to localhost:port to verify port-forwarding is active.
     """
     print(f"   ... Verifying local connectivity on port {port}...")
-    for i in range(retries):
+    for _ in range(retries):
         try:
             with socket.create_connection(("localhost", port), timeout=1):
                 print(f"   ✅ Local connection confirmed on port {port}.")
@@ -183,7 +183,7 @@ def start_cloudflared_tunnel(service_name, local_port):
         return None
 
 
-def cleanup(signum, frame):
+def cleanup(signum, frame):  # noqa: ARG001
     print("\n\n🛑 Stopping all tunnels and port-forwards...")
     for proc in active_processes:
         if proc.poll() is None:

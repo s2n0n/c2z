@@ -15,7 +15,7 @@ OS_TYPE=$(uname -s)
 
 # 0. Python Virtual Environment Setup (New Requirement)
 setup_venv() {
-    echo -e "${GREEN}� Setting up Python Virtual Environment (.venv)...${NC}"
+    echo -e "${GREEN}🐍 Setting up Python Virtual Environment (.venv)...${NC}"
 
     if ! command -v python3 &> /dev/null; then
         echo -e "${RED}❌ python3 is required but not found.${NC}"
@@ -187,20 +187,14 @@ deploy_c2z() {
 # 5. Create c2z Wrapper Script
 create_wrapper() {
     echo -e "${GREEN}📝 Creating c2z wrapper script...${NC}"
-    cat > c2z <<EOF
+    cat > c2z <<'EOF'
 #!/bin/bash
-source \$(dirname "\$0")/.venv/bin/activate
-python3 \$(dirname "\$0")/c2z-cli.py "\$@"
+source "$(dirname "$0")/.venv/bin/activate"
+python3 "$(dirname "$0")/c2z-cli.py" "$@"
 EOF
     chmod +x c2z
     echo "✅ Wrapper 'c2z' created. Usage: ./c2z list"
 }
-
-# Execution Flow
-setup_venv
-check_requirements
-install_k8s
-install_helm
 
 # 4.5 Setup Registry Secret (Interactive)
 setup_registry_secret() {
@@ -208,7 +202,9 @@ setup_registry_secret() {
 
     # Load from .env or .env.local if present
     # shellcheck disable=SC1091
-    if [ -f .env.local ]; then source .env.local; fi
+    if [ -f .env.local ]; then
+        source .env.local
+    fi
     # if [ -f .env ]; then source .env; fi
 
     # Support uppercase variable names from env file
@@ -229,15 +225,15 @@ setup_registry_secret() {
             echo "   ✅ Credentials found in environment/variables."
             answer="y"
         else
-            read -p "   Do you want to create it now? (y/n): " answer < /dev/tty
+            read -rp "   Do you want to create it now? (y/n): " answer < /dev/tty
         fi
 
         if [[ "$answer" =~ ^[Yy]$ ]]; then
             if [ -z "$gh_user" ]; then
-                read -p "   GitHub Username: " gh_user < /dev/tty
+                read -rp "   GitHub Username: " gh_user < /dev/tty
             fi
             if [ -z "$gh_token" ]; then
-                read -sp "   GitHub PAT Token: " gh_token < /dev/tty
+                read -rsp "   GitHub PAT Token: " gh_token < /dev/tty
                 echo ""
             fi
 
@@ -286,6 +282,11 @@ EOF
     fi
 }
 
+# Execution Flow
+setup_venv
+check_requirements
+install_k8s
+install_helm
 setup_registry_secret
 replicate_secret_to_simulation
 deploy_c2z

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-import click
-import subprocess
-import yaml
 import os
+import subprocess
+import click
+import yaml
 from tabulate import tabulate
 
 
@@ -14,12 +14,10 @@ def to_config_key(scenario_id):
     }
     return mapping.get(scenario_id)
 
-
 @click.group()
 def cli():
     """c2z CLI - Kubernetes 기반 침투 테스트 환경 관리"""
     pass
-
 
 @cli.command()
 def list():
@@ -32,7 +30,6 @@ def list():
     ]
     headers = ["ID", "시나리오", "난이도", "상태"]
     print(tabulate(scenarios, headers=headers, tablefmt="grid"))
-
 
 @cli.command()
 @click.argument("scenario_id")
@@ -70,7 +67,6 @@ def deploy(scenario_id):
     except subprocess.CalledProcessError as e:
         click.echo(f"❌ 배포 실패: {e}", err=True)
 
-
 @cli.command()
 @click.argument("scenario_id")
 def delete(scenario_id):
@@ -106,7 +102,6 @@ def delete(scenario_id):
         except subprocess.CalledProcessError as e:
             click.echo(f"❌ 삭제 실패: {e}", err=True)
 
-
 @cli.command()
 def status():
     """전체 시스템 상태 확인"""
@@ -131,7 +126,6 @@ def status():
             click.echo(f"\n--- Namespace: {ns} ---")
             subprocess.run(["kubectl", "get", "pods", "-n", ns])
 
-
 @cli.command()
 @click.argument("scenario_id")
 def logs(scenario_id):
@@ -153,7 +147,6 @@ def logs(scenario_id):
         subprocess.run(cmd)
     except KeyboardInterrupt:
         pass
-
 
 def get_access_info(scenario_id):
     """시나리오 접속 정보 출력"""
@@ -190,7 +183,6 @@ def get_access_info(scenario_id):
         click.echo(f"  Namespace '{ns}'에 접근할 수 없거나 서비스가 없습니다.")
     except Exception as e:
         click.echo(f"  정보 조회 오류: {e}")
-
 
 if __name__ == "__main__":
     cli()
