@@ -1,0 +1,44 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-zeek-to-loki
+  namespace: traffic-analysis
+  labels:
+    app: traffic-analysis
+spec:
+  # 이 정책은 app=zeek 라벨을 가진 Pod에만 적용
+  podSelector:
+    matchLabels:
+      app: zeek
+  
+  # Egress트래픽만 제어
+  policyTypes:
+  - Egress
+  
+  egress:
+  # 규칙 1: Loki 접근 허용
+  - to:
+    # monitoring 네임스페이스로
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: monitoring
+    ports:
+    # 3100 포트(Loki)만 허용
+    - protocol: TCP
+      port: 3100
+  
+  # DNS 조회 허용
+  - to:
+    # kube-system 네임스페이스의 DNS 서버로
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    # 53 포트(DNS)만 허용
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53

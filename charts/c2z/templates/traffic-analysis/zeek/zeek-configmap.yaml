@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zeek-analyzer-script
+  namespace: traffic-analysis
+data:
+  analyze.sh: |
+    #!/bin/sh
+    set -eu
+    
+    ZEEK_LOG_DIR="/zeek-logs"
+    PCAP_DIR="/pcaps"
+    ANALYZED_DIR="$PCAP_DIR/analyzed"
+    FAILED_DIR="$PCAP_DIR/failed"
+    
+    mkdir -p "$ZEEK_LOG_DIR" "$ANALYZED_DIR" "$FAILED_DIR"
+    
+    # 비정상 종료로 남은 lock 파일 제거
+    find "$PCAP_DIR" -maxdepth 1 -name ".*.processing" -delete
+    
+    cat > /tmp/zeek-json.zeek << 'ZEEKCONF'
+    redef LogAscii::use_json=T;
+    redef LogAscii::json_timestamps = JSON::TS_ISO8601;
+    redef Log::default_rotation_interval = 1 hr;
+    ZEEKCONF
+    
+    echo "[Zeek] Watching $PCAP_DIR for new PCAP files..."
+    
+    while true; do
+      # analyzed, failed 폴더 제외하고 검색
+      find "$PCAP_DIR" \
+        -path "$ANALYZED_DIR" -prune -o \
+        -path "$FAILED_DIR" -prune -o \
+        -type f -name "*.pcap" -print | while read -r pcap_file; do
+        
+        base="$(basename "$pcap_file")"
+        lock="$PCAP_DIR/.${base}.processing"
+        
+        if [ -e "$lock" ]; then
+          continue
+        fi
+        
+        echo "[$(date)] Processing: $base"
+        touch "$lock"
+        
+        cd "$ZEEK_LOG_DIR"  # ← 로그 디렉토리로 이동
+        if zeek -C -r "$pcap_file" /tmp/zeek-json.zeek local; then
+          mv "$pcap_file" "$ANALYZED_DIR/"
+          echo "[SUCCESS] $base → analyzed/"
+        else
+          mv "$pcap_file" "$FAILED_DIR/"
+          echo "[FAILED] $base → failed/"
+        fi
+        
+        rm -f "$lock"
+      done
+      
+      sleep 30
+    done
