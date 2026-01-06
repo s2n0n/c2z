@@ -7,10 +7,12 @@ import yaml
 import sys
 from tabulate import tabulate
 
+
 @click.group()
 def cli():
     """c2z CLI - Kubernetes 기반 침투 테스트 환경 관리"""
     pass
+
 
 @cli.command()
 def list():
@@ -24,6 +26,7 @@ def list():
 
     headers = ["ID", "시나리오", "난이도", "상태"]
     print(tabulate(scenarios, headers=headers, tablefmt="grid"))
+
 
 @cli.command()
 @click.argument('scenario_id')
@@ -214,9 +217,9 @@ def deploy(scenario_id):
     # `helm upgrade --reuse-values --set scenarios.webVuln.enabled=true` is the standard way.
     #
     # Let's write the CLI with this logic.
-    
+
     # Helm Chart path:
-    CHART_PATH = "./charts/c2z" # Assuming running continuously from root
+    CHART_PATH = "./charts/c2z"  # Assuming running continuously from root
 
     cmd = [
         "helm", "upgrade", "c2z", CHART_PATH,
@@ -227,7 +230,7 @@ def deploy(scenario_id):
     ]
 
     # Need a helper to convert 'web-vuln' to 'webVuln'.
-    
+
     # ... Wait. `install.sh` deploys to `c2z-system`.
     # The plan's CLI command deployed to `scenario-{id}` namespace.
     #
@@ -236,7 +239,7 @@ def deploy(scenario_id):
     # My templates have `namespace: scenario-web-vuln` HARDCODED.
     # So even if Helm release is in `c2z-system`, the resources will go to `scenario-web-vuln`.
     # This works.
-    
+
     # So, Plan change for CLI:
     # Instead of installing new releases, we update the main release 'c2z'.
     #
@@ -255,29 +258,29 @@ def deploy(scenario_id):
     # But wait, looking at `c2z-cli` code in plan.
     # It has specific `deploy` logic.
     # I should try to preserve the user experience.
-    
+
     # Updated plan:
     # 1. Write `c2z-cli` (Modified `deploy`/`delete` logic).
     # 2. Modify `templates` to add `{{ if .Values... }}`.
-    
+
     # Let's write `c2z-cli` now.
 
     # Converting plan's `deploy` to:
     # helm upgrade c2z ./charts/c2z -n c2z-system --reuse-values --set scenarios.{id}.enabled=true
-    
+
     # Converting plan's `delete` to:
     # helm upgrade c2z ./charts/c2z -n c2z-system --reuse-values --set scenarios.{id}.enabled=false
 
     try:
         if scenario_id == 'web-vuln':
-             key = 'scenarios.webVuln.enabled'
+            key = 'scenarios.webVuln.enabled'
         elif scenario_id == 'container-escape':
-             key = 'scenarios.containerEscape.enabled'
+            key = 'scenarios.containerEscape.enabled'
         elif scenario_id == 'network-attack':
-             key = 'scenarios.networkAttack.enabled'
+            key = 'scenarios.networkAttack.enabled'
         else:
-             click.echo("Unknown scenario")
-             return
+            click.echo("Unknown scenario")
+            return
 
         cmd = [
             "helm", "upgrade", "c2z", "./charts/c2z",
@@ -286,11 +289,11 @@ def deploy(scenario_id):
             "--set", f"{key}=true",
             "--wait"
         ]
-        
+
         subprocess.run(cmd, check=True)
         click.echo(f"✅ 시나리오 배포 완료: {scenario_id}")
         get_access_info(scenario_id)
-        
+
     except subprocess.CalledProcessError as e:
         click.echo(f"❌ 배포 실패: {e}", err=True)
 
@@ -298,12 +301,14 @@ def deploy(scenario_id):
 
     pass
 
+
 # I will write the file with `tabulate` dependency usage as in plan.
 import click
 import subprocess
 import yaml
 from tabulate import tabulate
 import os
+
 
 def to_config_key(scenario_id):
     mapping = {
@@ -313,10 +318,12 @@ def to_config_key(scenario_id):
     }
     return mapping.get(scenario_id)
 
+
 @click.group()
 def cli():
     """c2z CLI - Kubernetes 기반 침투 테스트 환경 관리"""
     pass
+
 
 @cli.command()
 def list():
@@ -330,6 +337,7 @@ def list():
     headers = ["ID", "시나리오", "난이도", "상태"]
     print(tabulate(scenarios, headers=headers, tablefmt="grid"))
 
+
 @cli.command()
 @click.argument('scenario_id')
 def deploy(scenario_id):
@@ -340,13 +348,13 @@ def deploy(scenario_id):
         return
 
     click.echo(f"🚀 시나리오 배포 중: {scenario_id}")
-    
+
     # Assuming chart is at ./charts/c2z
     chart_path = "./charts/c2z"
     if not os.path.isdir(chart_path):
         # Fallback to repo if not local? For now assume local as per dev environment
         click.echo("⚠️  Local chart not found, utilizing helm repo logic (not implemented fully for dev)")
-    
+
     cmd = [
         "helm", "upgrade", "c2z", chart_path,
         "--namespace", "c2z-system",
@@ -362,6 +370,7 @@ def deploy(scenario_id):
     except subprocess.CalledProcessError as e:
         click.echo(f"❌ 배포 실패: {e}", err=True)
 
+
 @cli.command()
 @click.argument('scenario_id')
 def delete(scenario_id):
@@ -372,7 +381,7 @@ def delete(scenario_id):
 
     if click.confirm(f"시나리오 '{scenario_id}'를 정말 삭제하시겠습니까?"):
         click.echo(f"🗑️  시나리오 삭제 중: {scenario_id}")
-        
+
         cmd = [
             "helm", "upgrade", "c2z", "./charts/c2z",
             "--namespace", "c2z-system",
@@ -387,6 +396,7 @@ def delete(scenario_id):
         except subprocess.CalledProcessError as e:
             click.echo(f"❌ 삭제 실패: {e}", err=True)
 
+
 @cli.command()
 def status():
     """전체 시스템 상태 확인"""
@@ -400,6 +410,7 @@ def status():
     # Manual check:
     subprocess.run(["kubectl", "get", "pods", "-A", "--show-labels"])
 
+
 @cli.command()
 @click.argument('scenario_id')
 def logs(scenario_id):
@@ -411,23 +422,24 @@ def logs(scenario_id):
         "-n", ns,
         "--all-containers=true",
         "--prefix=true",
-        "-l", f"scenario={scenario_id}", # I added this label to deployments
+        "-l", f"scenario={scenario_id}",  # I added this label to deployments
         "--tail=100",
         "-f"
     ]
     subprocess.run(cmd)
 
+
 def get_access_info(scenario_id):
     """시나리오 접속 정보 출력"""
     click.echo("\n📍 접속 정보:")
     ns = f"scenario-{scenario_id}"
-    
+
     cmd = [
         "kubectl", "get", "svc",
         "-n", ns,
         "-o", "json"
     ]
-    
+
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         try:
@@ -446,9 +458,10 @@ def get_access_info(scenario_id):
                     # I will add a hint.
                     click.echo(f"    (Run: kubectl port-forward -n {ns} svc/{name} {port}:{port})")
         except yaml.YAMLError:
-             pass
+            pass
     except subprocess.CalledProcessError:
         click.echo("  서비스 정보를 가져올 수 없습니다.")
+
 
 if __name__ == '__main__':
     cli()
