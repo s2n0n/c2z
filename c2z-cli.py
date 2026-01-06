@@ -1,21 +1,9 @@
 #!/usr/bin/env python3
-# c2z-cli
-
 import click
 import subprocess
 import yaml
 import os
 from tabulate import tabulate
-
-
-def to_camel_case(text):
-    if text == "web-vuln":
-        return "webVuln"
-    if text == "container-escape":
-        return "containerEscape"
-    if text == "network-attack":
-        return "networkAttack"
-    return text
 
 
 def to_config_key(scenario_id):
@@ -25,41 +13,6 @@ def to_config_key(scenario_id):
         "network-attack": "networkAttack",
     }
     return mapping.get(scenario_id)
-
-
-def get_access_info(scenario_id):
-    """시나리오 접속 정보 출력"""
-    click.echo("\n📍 접속 정보:")
-    ns = f"scenario-{scenario_id}"
-
-    cmd = ["kubectl", "get", "svc", "-n", ns, "-o", "json"]
-
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        try:
-            services = yaml.safe_load(result.stdout)
-            items = services.get("items", [])
-            if not items:
-                click.echo("  (No services found)")
-                return
-
-            for svc in items:
-                name = svc["metadata"]["name"]
-                spec = svc.get("spec", {})
-                ports = spec.get("ports", [])
-                for p in ports:
-                    port = p["port"]
-                    link = f"http://localhost:{port} (via port-forward)"
-                    click.echo(f"  - {name}: {link}")
-                    click.echo(
-                        f"    (Run: kubectl port-forward -n {ns} svc/{name} {port}:{port})"
-                    )
-        except yaml.YAMLError:
-            pass
-    except subprocess.CalledProcessError:
-        click.echo(
-            "  서비스 정보를 가져올 수 없습니다. (Namespace might not exist yet)"
-        )
 
 
 @click.group()
@@ -77,7 +30,6 @@ def list():
         ["network-attack", "Network Attack", "중급", "✅ 사용 가능"],
         ["api-security", "API Security", "중급", "🚧 개발 중"],
     ]
-
     headers = ["ID", "시나리오", "난이도", "상태"]
     print(tabulate(scenarios, headers=headers, tablefmt="grid"))
 
@@ -93,29 +45,18 @@ def deploy(scenario_id):
 
     click.echo(f"🚀 시나리오 배포 중: {scenario_id}")
 
-    # Assuming chart is at ./charts/c2z relative to where CLI is run
     chart_path = "./charts/c2z"
-    if not os.path.exists(chart_path):
-        # Try to find it relative to script location
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        chart_path = os.path.join(script_dir, "charts", "c2z")
+    if not os.path.exists(chart_path) and os.path.exists("../charts/c2z"):
+        chart_path = "../charts/c2z"
 
-    if not os.path.exists(chart_path):
-        click.echo(
-            f"⚠️  Chart path not found at {chart_path}. Assuming 'c2z/c2z' from repo if adding that logic."
-        )
-        # For now, fail or assume current dir
-        chart_path = "./charts/c2z"
-
+    # Monolith chart strategy: Update the main release with the scenario enabled
     cmd = [
         "helm",
         "upgrade",
-        "--install",
         "c2z",
         chart_path,
         "--namespace",
         "c2z-system",
-        "--create-namespace",
         "--reuse-values",
         "--set",
         f"scenarios.{key}.enabled=true",
@@ -142,11 +83,9 @@ def delete(scenario_id):
     if click.confirm(f"시나리오 '{scenario_id}'를 정말 삭제하시겠습니까?"):
         click.echo(f"🗑️  시나리오 삭제 중: {scenario_id}")
 
-        # We need to find the chart path again to run upgrade
         chart_path = "./charts/c2z"
-        if not os.path.exists(chart_path):
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            chart_path = os.path.join(script_dir, "charts", "c2z")
+        if not os.path.exists(chart_path) and os.path.exists("../charts/c2z"):
+            chart_path = "../charts/c2z"
 
         cmd = [
             "helm",
@@ -171,41 +110,86 @@ def delete(scenario_id):
 @cli.command()
 def status():
     """전체 시스템 상태 확인"""
-    click.echo("📊 c2z 시스템 상태\n")
-    # c2z-system and scenario namespaces
-    # Check if kubectl is available
-    try:
-        subprocess.run(
-            ["kubectl", "version", "--client"], check=True, stdout=subprocess.DEVNULL
-        )
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        click.echo("❌ kubectl not found or not working")
-        return
+    click.echo("📊 c2z 시스템 상태 (Pods in c2z-system and scenario namespaces)\n")
 
-    click.echo("Checking pods in c2z-related namespaces...")
-    # List all pods with label app.kubernetes.io/part-of=c2z OR in specific namespaces
-    # Since we can't easily grep all namespaces by name pattern without scripting,
-    # we'll list all and grep or just show all if label is present.
-    # Assuming we added labels to our charts.
-    # If not, let's just check the known namespaces.
+    click.echo("--- Namespace: c2z-system ---")
+    subprocess.run(["kubectl", "get", "pods", "-n", "c2z-system"])
 
-    namespaces = [
-        "c2z-system",
+    scenarios = [
         "scenario-web-vuln",
         "scenario-container-escape",
         "scenario-network-attack",
     ]
-    found_any = False
-    for ns in namespaces:
-        # check if namespace exists
-        res = subprocess.run(["kubectl", "get", "ns", ns], capture_output=True)
-        if res.returncode == 0:
-            click.echo(f"\nNamespace: {ns}")
+    for ns in scenarios:
+        # Check if namespace exists first to avoid spammy errors
+        check_ns = subprocess.run(
+            ["kubectl", "get", "ns", ns],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if check_ns.returncode == 0:
+            click.echo(f"\n--- Namespace: {ns} ---")
             subprocess.run(["kubectl", "get", "pods", "-n", ns])
-            found_any = True
 
-    if not found_any:
-        click.echo("No c2z namespaces found.")
+
+@cli.command()
+@click.argument("scenario_id")
+def logs(scenario_id):
+    """시나리오 로그 조회"""
+    ns = f"scenario-{scenario_id}"
+    cmd = [
+        "kubectl",
+        "logs",
+        "-n",
+        ns,
+        "--all-containers=true",
+        "--prefix=true",
+        "-l",
+        f"scenario={scenario_id}",
+        "--tail=100",
+        "-f",
+    ]
+    try:
+        subprocess.run(cmd)
+    except KeyboardInterrupt:
+        pass
+
+
+def get_access_info(scenario_id):
+    """시나리오 접속 정보 출력"""
+    click.echo("\n📍 접속 정보:")
+    ns = f"scenario-{scenario_id}"
+
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "svc", "-n", ns, "-o", "json"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        services = yaml.safe_load(result.stdout)
+
+        found = False
+        for svc in services.get("items", []):
+            name = svc["metadata"]["name"]
+            spec = svc.get("spec", {})
+            ports = spec.get("ports", [])
+
+            for p in ports:
+                port = p["port"]
+                click.echo(f"  - Service: {name}")
+                click.echo(
+                    f"    Local Access: kubectl port-forward -n {ns} svc/{name} {port}:{port}"
+                )
+                found = True
+
+        if not found:
+            click.echo("  (No services found)")
+
+    except subprocess.CalledProcessError:
+        click.echo(f"  Namespace '{ns}'에 접근할 수 없거나 서비스가 없습니다.")
+    except Exception as e:
+        click.echo(f"  정보 조회 오류: {e}")
 
 
 if __name__ == "__main__":
