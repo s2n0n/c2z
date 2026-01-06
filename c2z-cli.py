@@ -5,8 +5,7 @@ import click
 import yaml
 from tabulate import tabulate
 
-
-def to_config_key(scenario_id):
+def to_config_key(scenario_id: str) -> str | None:
     mapping = {
         "web-vuln": "webVuln",
         "container-escape": "containerEscape",
@@ -15,12 +14,11 @@ def to_config_key(scenario_id):
     return mapping.get(scenario_id)
 
 @click.group()
-def cli():
+def cli() -> None:
     """c2z CLI - Kubernetes 기반 침투 테스트 환경 관리"""
-    pass
 
 @cli.command()
-def list():
+def list() -> None:  # noqa: A001
     """사용 가능한 시나리오 목록 표시"""
     scenarios = [
         ["web-vuln", "Web Application 취약점", "초급", "✅ 사용 가능"],
@@ -31,9 +29,10 @@ def list():
     headers = ["ID", "시나리오", "난이도", "상태"]
     print(tabulate(scenarios, headers=headers, tablefmt="grid"))
 
+
 @cli.command()
 @click.argument("scenario_id")
-def deploy(scenario_id):
+def deploy(scenario_id: str) -> None:
     """시나리오 배포 (Enables scenario in c2z stack)"""
     key = to_config_key(scenario_id)
     if not key:
@@ -69,7 +68,7 @@ def deploy(scenario_id):
 
 @cli.command()
 @click.argument("scenario_id")
-def delete(scenario_id):
+def delete(scenario_id: str) -> None:
     """시나리오 삭제 (Disables scenario in c2z stack)"""
     key = to_config_key(scenario_id)
     if not key:
@@ -103,12 +102,12 @@ def delete(scenario_id):
             click.echo(f"❌ 삭제 실패: {e}", err=True)
 
 @cli.command()
-def status():
+def status() -> None:
     """전체 시스템 상태 확인"""
     click.echo("📊 c2z 시스템 상태 (Pods in c2z-system and scenario namespaces)\n")
 
     click.echo("--- Namespace: c2z-system ---")
-    subprocess.run(["kubectl", "get", "pods", "-n", "c2z-system"])
+    subprocess.run(["kubectl", "get", "pods", "-n", "c2z-system"], check=False)
 
     scenarios = [
         "scenario-web-vuln",
@@ -116,19 +115,20 @@ def status():
         "scenario-network-attack",
     ]
     for ns in scenarios:
-        # Check if namespace exists first to avoid spammy errors
         check_ns = subprocess.run(
             ["kubectl", "get", "ns", ns],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            check=False,
         )
         if check_ns.returncode == 0:
             click.echo(f"\n--- Namespace: {ns} ---")
-            subprocess.run(["kubectl", "get", "pods", "-n", ns])
+            subprocess.run(["kubectl", "get", "pods", "-n", ns], check=False)
+
 
 @cli.command()
 @click.argument("scenario_id")
-def logs(scenario_id):
+def logs(scenario_id: str) -> None:
     """시나리오 로그 조회"""
     ns = f"scenario-{scenario_id}"
     cmd = [
@@ -144,11 +144,12 @@ def logs(scenario_id):
         "-f",
     ]
     try:
-        subprocess.run(cmd)
+        subprocess.run(cmd, check=False)
     except KeyboardInterrupt:
-        pass
+        return
 
-def get_access_info(scenario_id):
+
+def get_access_info(scenario_id: str) -> None:
     """시나리오 접속 정보 출력"""
     click.echo("\n📍 접속 정보:")
     ns = f"scenario-{scenario_id}"
@@ -183,6 +184,7 @@ def get_access_info(scenario_id):
         click.echo(f"  Namespace '{ns}'에 접근할 수 없거나 서비스가 없습니다.")
     except Exception as e:
         click.echo(f"  정보 조회 오류: {e}")
+
 
 if __name__ == "__main__":
     cli()
