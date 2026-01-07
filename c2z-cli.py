@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import os
+import random
+import sys
 import subprocess
 import click
 import yaml
