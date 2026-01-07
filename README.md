@@ -2,6 +2,31 @@
 
 **Kubernetes Based Penetration Testing Lab**
 
+```mermaid
+stateDiagram-v2
+
+state "<pre><code>  
+                                       
+                                ,----, 
+  ,----..        ,----,       .'   .`| 
+ /   /   \     .'   .' \   .'   .'   ; 
+|   :     :  ,----,'    |,---, '    .' 
+.   |  ;. /  |    :  .  ;|   :     ./  
+.   ; /--`   ;    |.'  / ;   | .'  /   
+;   | ;      `----'/  ;  `---' /  ;    
+|   : |        /  ;  /     /  ;  /     
+.   | '___    ;  /  /-,   ;  /  /--,   
+'   ; : .'|  /  /  /.`|  /  /  / .`|   
+'   | '/  :./__;      :./__;       :   
+|   :    / |   :    .' |   :     .'    
+ \   \ .'  ;   | .'    ;   |  .'       
+  `---`    `---'       `---'           
+                                                   
+</pre></code>" as c2z
+
+style c2z fill:#c4f452, color: #000, width: 100vw, font-weight: bold
+```
+
 # English Version
 
 `c2z` is an automated penetration testing lab that operates in a **Kubernetes-native environment**. It is designed to enable security researchers and learners to quickly and easily deploy and practice realistic attack/defense scenarios.
@@ -13,6 +38,12 @@
 - **One-Click Installation**: Easy setup through Helm and automated scripts
 - **Scenario-Based**: Provides various scenarios including Web vulnerabilities, Container Escape, Network Attack, and more
 - **Monitoring Integration**: Real-time observability through Prometheus, Grafana, and Loki
+
+## Guide
+
+[c2z guide](https://github.com/s2n0n/c2z/blob/main/guide.mdx) 
+
+- For detailed guide, please read `/guide.mdx` 
 
 ## Installation
 
