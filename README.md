@@ -27,6 +27,9 @@ state "<pre><code>
 style c2z fill:#c4f452, color: #000, width: 100vw, font-weight: bold
 ```
 
+
+- Helm Repository : https://s2n0n.github.io/c2z/
+
 # English Version
 
 `c2z` is an automated penetration testing lab that operates in a **Kubernetes-native environment**. It is designed to enable security researchers and learners to quickly and easily deploy and practice realistic attack/defense scenarios.
