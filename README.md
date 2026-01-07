@@ -98,7 +98,7 @@ pip install -r requirements.txt
   ./c2z-cli status
   ```
 
-## 📂 Folder Structure
+## Folder Structure
 
 ```
 c2z/
@@ -205,7 +205,7 @@ pip install -r requirements.txt
   ./c2z-cli status
   ```
 
-## 📂 폴더 구조 구조
+## 폴더 구조 구조
 
 ```
 c2z/
