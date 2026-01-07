@@ -6,7 +6,7 @@
 
 `c2z` is an automated penetration testing lab that operates in a **Kubernetes-native environment**. It is designed to enable security researchers and learners to quickly and easily deploy and practice realistic attack/defense scenarios.
 
-## 🚀 Key Features
+## Key Features
 
 - **Rapid Deployment**: Container-based environment setup in seconds
 - **Resource Efficiency**: Significantly lower resource consumption compared to virtual machines
@@ -14,7 +14,7 @@
 - **Scenario-Based**: Provides various scenarios including Web vulnerabilities, Container Escape, Network Attack, and more
 - **Monitoring Integration**: Real-time observability through Prometheus, Grafana, and Loki
 
-## 🛠️ Installation
+## Installation
 
 ### Prerequisites
 
@@ -32,7 +32,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-## 🎮 Usage (CLI)
+## Usage (CLI)
 
 You can manage scenarios using the `c2z-cli` tool.
 
@@ -90,7 +90,7 @@ c2z/
 └── README.md                   # Project documentation
 ```
 
-## 🛡️ Scenario List
+## Scenario List
 
 ### 1. Web Application Vulnerabilities (web-vuln)
 
@@ -113,7 +113,7 @@ c2z/
 
 c2z는 Kubernetes 네이티브 환경에서 동작하는 자동화된 침투 테스트 랩입니다. 보안 연구자와 학습자가 실전적인 공격/방어 시나리오를 빠르고 쉽게 배포하고 실습할 수 있도록 설계되었습니다.
 
-## 🚀 주요 기능
+## 주요 기능
 
 - **빠른 배포**: 컨테이너 기반으로 수 초 내에 실습 환경 구축
 - **리소스 효율성**: 가상머신 대비 현저히 낮은 리소스 점유
@@ -121,7 +121,7 @@ c2z는 Kubernetes 네이티브 환경에서 동작하는 자동화된 침투 테
 - **시나리오 기반**: Web 취약점, Container Escape, Network Attack 등 다양한 시나리오 제공
 - **모니터링 통합**: Prometheus, Grafana, Loki를 통한 실시간 관측 가능
 
-## 🛠️ 설치 방법
+## 설치 방법
 
 ### 전제 조건
 
@@ -139,7 +139,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-## 🎮 사용 방법 (CLI)
+## 사용 방법 (CLI)
 
 `c2z-cli` 도구를 사용하여 시나리오를 관리할 수 있습니다.
 
@@ -197,7 +197,7 @@ c2z/
 └── README.md                   # 프로젝트 문서
 ```
 
-## 🛡️ 시나리오 목록
+## 시나리오 목록
 
 ### 1. Web Application 취약점 (web-vuln)
 
