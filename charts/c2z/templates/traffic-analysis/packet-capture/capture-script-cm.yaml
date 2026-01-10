@@ -4,24 +4,35 @@ metadata:
   name: packet-capture-script
   namespace: traffic-analysis
 data:
+  post-rotate.sh: |
+    #!/bin/sh
+    # $1 is the filename of the pcap file just closed
+    if [ -f "$1" ]; then
+      mv "$1" "${1%.tmp}"
+      echo "[$(date)] Rotated: $1 -> ${1%.tmp}"
+    fi
   capture.sh: |
     #!/bin/sh
     
     INTERFACE=${INTERFACE:-eth0}
     PCAP_DIR=${PCAP_DIR:-/pcaps}
     ROTATION_SIZE=${ROTATION_SIZE:-50}
+    ROTATION_TIME=${ROTATION_TIME:-300}
     POD_NAME=${POD_NAME:-unknown}
     
     echo "[$(date)] Starting packet capture on $INTERFACE"
     echo "[$(date)] Saving to $PCAP_DIR"
     echo "[$(date)] Rotation size: ${ROTATION_SIZE}MB"
+    echo "[$(date)] Rotation time: ${ROTATION_TIME}s"
     echo "[$(date)] Pod name: $POD_NAME"
     
     mkdir -p $PCAP_DIR/$POD_NAME
     
     exec tcpdump -i $INTERFACE \
-      -w $PCAP_DIR/$POD_NAME/capture-%Y%m%d-%H%M%S.pcap \
+      -w $PCAP_DIR/$POD_NAME/capture-%Y%m%d-%H%M%S.pcap.tmp \
       -C $ROTATION_SIZE \
+      -G $ROTATION_TIME \
+      -z /scripts/post-rotate.sh \
       -Z root \
       -n \
       -s0 \
