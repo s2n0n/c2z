@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: dvwa
-  namespace: scenario-web-vuln
+  namespace: traffic-analysis
   labels:
     app: dvwa
     scenario: web-vuln
@@ -20,7 +20,7 @@ spec:
     spec:
       # ===== 추가: 프로세스 네임스페이스 공유 =====
       shareProcessNamespace: true
-      
+
       containers:
       # ===== 기존 DVWA 컨테이너 =====
       - name: dvwa
@@ -57,7 +57,7 @@ spec:
             port: 80
           initialDelaySeconds: 10
           periodSeconds: 5
-      
+
       # ===== 추가: Packet Capture Sidecar =====
       - name: packet-capture
         image: nicolaka/netshoot:latest
@@ -83,7 +83,7 @@ spec:
         resources:
           requests:
             memory: "128Mi"
-            cpu: "50m"
+            cpu: "100m"
           limits:
             memory: "256Mi"
             cpu: "200m"
