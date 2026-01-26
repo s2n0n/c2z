@@ -49,7 +49,12 @@ def deploy(scenario_id: str) -> None:
         chart_path = "../charts/c2z"
 
     check_cmd = ["helm", "status", "c2z", "-n", "simulation"]
-    is_installed = subprocess.run(check_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+    is_installed = (
+        subprocess.run(
+            check_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        ).returncode
+        == 0
+    )
 
     cmd = [
         "helm",
@@ -133,7 +138,7 @@ def logs(scenario_id: str) -> None:
         "-l",
         f"scenario={scenario_id}",
         "--tail=100",
-        "-f"
+        "-f",
     ]
     try:
         subprocess.run(cmd, check=False)
@@ -144,17 +149,17 @@ def logs(scenario_id: str) -> None:
 @cli.command()
 def build() -> None:
     click.echo("Building Next.js image in Minikube environment...")
-    
+
     src_path = "./nextjs-src"
     if not os.path.exists(src_path) and os.path.exists("../nextjs-src"):
         src_path = "../nextjs-src"
-    
+
     if not os.path.exists(src_path):
         click.echo(f"Source path not found: {src_path}", err=True)
         return
 
     cmd = f"eval $(minikube docker-env) && docker build -t nextjs:16.1.1 {src_path}"
-    
+
     try:
         subprocess.run(cmd, shell=True, check=True, executable="/bin/bash")
         click.echo("\nBuild success. Run 'deploy nextjs' to start.")
@@ -165,10 +170,12 @@ def build() -> None:
 def get_access_info(scenario_id: str) -> None:
     click.echo("\nAccess Info:")
     ns = "simulation"
-    
+
     if scenario_id == "nextjs":
         click.echo("  - App: Next.js Secure Coding")
-        click.echo(f"    Local Access: kubectl port-forward -n {ns} deployment/nextjs-16-secure 8082:3000")
+        click.echo(
+            f"    Local Access: kubectl port-forward -n {ns} deployment/nextjs-16-secure 8082:3000"
+        )
         return
 
     try:
@@ -188,7 +195,9 @@ def get_access_info(scenario_id: str) -> None:
             for p in ports:
                 port = p["port"]
                 click.echo(f"  - Service: {name}")
-                click.echo(f"    Local Access: kubectl port-forward -n {ns} svc/{name} {port}:{port}")
+                click.echo(
+                    f"    Local Access: kubectl port-forward -n {ns} svc/{name} {port}:{port}"
+                )
                 found = True
 
         if not found:
