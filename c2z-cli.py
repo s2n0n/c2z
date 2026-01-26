@@ -18,43 +18,52 @@ def to_config_key(scenario_id: str) -> str | None:
 
 @click.group()
 def cli() -> None:
-    """c2z CLI"""
+    """c2z CLI - Kubernetes 기반 침투 테스트 환경 관리"""
 
 
 @cli.command()
-def list() -> None:
+def list() -> None:  # noqa: A001
+    """사용 가능한 시나리오 목록 표시"""
     scenarios = [
-        ["web-vuln", "Web Application Vulnerability", "Basic", "Active"],
-        ["container-escape", "Container Escape", "Intermediate", "Active"],
-        ["network-attack", "Network Attack", "Intermediate", "Active"],
-        ["nextjs", "Next.js Secure Coding", "Advanced", "Active"],
-        ["api-security", "API Security", "Intermediate", "Dev"],
+        ["web-vuln", "Web Application 취약점", "초급", "✅ 사용 가능"],
+        ["container-escape", "Container Escape", "중급", "✅ 사용 가능"],
+        ["network-attack", "Network Attack", "중급", "✅ 사용 가능"],
+        ["nextjs", "Next.js Secure Coding", "고급", "✅ 사용 가능"],
+        ["api-security", "API Security", "중급", "🚧 개발 중"],
     ]
-    headers = ["ID", "Scenario", "Difficulty", "Status"]
+    headers = ["ID", "시나리오", "난이도", "상태"]
     print(tabulate(scenarios, headers=headers, tablefmt="grid"))
 
 
 @cli.command()
 @click.argument("scenario_id")
 def deploy(scenario_id: str) -> None:
+    """시나리오 배포 (Smart Install: 없으면 설치, 있으면 업데이트)"""
     key = to_config_key(scenario_id)
     if not key:
-        click.echo(f"Unknown scenario ID: {scenario_id}", err=True)
+        click.echo(f"❌ 알 수 없는 시나리오 ID: {scenario_id}", err=True)
         return
 
-    click.echo(f"Deploying scenario: {scenario_id}")
+    click.echo(f"🚀 시나리오 배포 시작: {scenario_id}")
 
     chart_path = "./charts/c2z"
     if not os.path.exists(chart_path) and os.path.exists("../charts/c2z"):
         chart_path = "../charts/c2z"
 
-    check_cmd = ["helm", "status", "c2z", "-n", "simulation"]
+    ns = "simulation"
+
+    check_cmd = ["helm", "status", "c2z", "-n", ns]
     is_installed = (
         subprocess.run(
             check_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         ).returncode
         == 0
     )
+
+    if is_installed:
+        click.echo("🔄 기존 환경 감지됨 -> 설정 업데이트 진행")
+    else:
+        click.echo("🆕 초기 환경 감지됨 -> 신규 설치 진행")
 
     cmd = [
         "helm",
@@ -63,7 +72,7 @@ def deploy(scenario_id: str) -> None:
         "c2z",
         chart_path,
         "--namespace",
-        "simulation",
+        ns,
         "--create-namespace",
         "--wait",
     ]
@@ -76,26 +85,29 @@ def deploy(scenario_id: str) -> None:
 
     try:
         subprocess.run(cmd, check=True)
-        click.echo(f"Scenario deployed: {scenario_id}")
+        click.echo(f"✅ 시나리오 배포 완료: {scenario_id}")
         get_access_info(scenario_id)
     except subprocess.CalledProcessError as e:
-        click.echo(f"Deploy failed: {e}", err=True)
+        click.echo(f"❌ 배포 실패: {e}", err=True)
 
 
 @cli.command()
 @click.argument("scenario_id")
 def delete(scenario_id: str) -> None:
+    """시나리오 삭제 (Disables scenario in c2z stack)"""
     key = to_config_key(scenario_id)
     if not key:
-        click.echo(f"Unknown scenario ID: {scenario_id}", err=True)
+        click.echo(f"❌ 알 수 없는 시나리오 ID: {scenario_id}", err=True)
         return
 
-    if click.confirm(f"Delete scenario '{scenario_id}'?"):
-        click.echo(f"Deleting scenario: {scenario_id}")
+    if click.confirm(f"시나리오 '{scenario_id}'를 정말 삭제하시겠습니까?"):
+        click.echo(f"🗑️  시나리오 삭제 중: {scenario_id}")
 
         chart_path = "./charts/c2z"
         if not os.path.exists(chart_path) and os.path.exists("../charts/c2z"):
             chart_path = "../charts/c2z"
+
+        ns = "simulation"
 
         cmd = [
             "helm",
@@ -103,7 +115,7 @@ def delete(scenario_id: str) -> None:
             "c2z",
             chart_path,
             "--namespace",
-            "simulation",
+            ns,
             "--reuse-values",
             "--set",
             f"scenarios.{key}.enabled=false",
@@ -112,14 +124,15 @@ def delete(scenario_id: str) -> None:
 
         try:
             subprocess.run(cmd, check=True)
-            click.echo(f"Scenario deleted: {scenario_id}")
+            click.echo(f"✅ 시나리오 삭제 완료: {scenario_id}")
         except subprocess.CalledProcessError as e:
-            click.echo(f"Delete failed: {e}", err=True)
+            click.echo(f"❌ 삭제 실패: {e}", err=True)
 
 
 @cli.command()
 def status() -> None:
-    click.echo("System Status\n")
+    """전체 시스템 상태 확인"""
+    click.echo("📊 c2z 시스템 상태\n")
     click.echo("--- Namespace: simulation ---")
     subprocess.run(["kubectl", "get", "pods", "-n", "simulation"], check=False)
 
@@ -127,6 +140,7 @@ def status() -> None:
 @cli.command()
 @click.argument("scenario_id")
 def logs(scenario_id: str) -> None:
+    """시나리오 로그 조회"""
     ns = "simulation"
     cmd = [
         "kubectl",
@@ -148,33 +162,37 @@ def logs(scenario_id: str) -> None:
 
 @cli.command()
 def build() -> None:
-    click.echo("Building Next.js image in Minikube environment...")
+    """Next.js 이미지 자동 빌드 (Minikube 연결 포함)"""
+    click.echo("🐳 Minikube Docker 환경에 연결하여 빌드를 시작합니다...")
 
     src_path = "./nextjs-src"
     if not os.path.exists(src_path) and os.path.exists("../nextjs-src"):
         src_path = "../nextjs-src"
 
     if not os.path.exists(src_path):
-        click.echo(f"Source path not found: {src_path}", err=True)
+        click.echo(f"❌ 소스코드 폴더({src_path})를 찾을 수 없습니다.", err=True)
         return
 
     cmd = f"eval $(minikube docker-env) && docker build -t nextjs:16.1.1 {src_path}"
 
     try:
         subprocess.run(cmd, shell=True, check=True, executable="/bin/bash")
-        click.echo("\nBuild success. Run 'deploy nextjs' to start.")
+        click.echo("\n✅ 빌드 성공! 이제 'nextjs'를 실행할 수 있습니다.")
     except subprocess.CalledProcessError:
-        click.echo("\nBuild failed.", err=True)
+        click.echo(
+            "\n❌ 빌드 실패: 용량이 부족하거나 도커에 문제가 있습니다.", err=True
+        )
 
 
 def get_access_info(scenario_id: str) -> None:
-    click.echo("\nAccess Info:")
+    """시나리오 접속 정보 출력"""
+    click.echo("\n📍 접속 정보:")
     ns = "simulation"
 
     if scenario_id == "nextjs":
         click.echo("  - App: Next.js Secure Coding")
         click.echo(
-            f"    Local Access: kubectl port-forward -n {ns} deployment/nextjs-16-secure 8082:3000"
+            f"    Local Access: kubectl port-forward -n {ns} deployment/nextjs-16-1-1 8082:3000"
         )
         return
 
@@ -204,9 +222,9 @@ def get_access_info(scenario_id: str) -> None:
             click.echo("  (No services found)")
 
     except subprocess.CalledProcessError:
-        click.echo(f"  Cannot access namespace '{ns}'")
+        click.echo(f"  Namespace '{ns}'에 접근할 수 없거나 서비스가 없습니다.")
     except Exception as e:
-        click.echo(f"  Error: {e}")
+        click.echo(f"  정보 조회 오류: {e}")
 
 
 if __name__ == "__main__":
