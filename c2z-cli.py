@@ -53,10 +53,12 @@ def deploy(scenario_id: str) -> None:
     cmd = [
         "helm",
         "upgrade",
+        "--install",
         "c2z",
         chart_path,
         "--namespace",
         "c2z-system",
+        "--create-namespace",
         "--reuse-values",
         "--set",
         f"scenarios.{key}.enabled=true",
@@ -137,7 +139,7 @@ def status() -> None:
 def logs(scenario_id: str) -> None:
     """시나리오 로그 조회"""
     ns = f"scenario-{scenario_id}"
-
+    
     if scenario_id == "nextjs":
         ns = "c2z-system"
 
