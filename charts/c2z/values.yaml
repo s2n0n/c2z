@@ -43,6 +43,16 @@ scenarios:
   networkAttack:
     enabled: true
 
+  nextjs:
+    enabled: false
+    image:
+      repository: nextjs
+      tag: 16.1.1
+      pullPolicy: Never
+    service:
+      port: 3000
+      nodePort: 30082
+
 # 모니터링 스택
 monitoring:
   enabled: true

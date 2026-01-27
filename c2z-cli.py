@@ -11,6 +11,7 @@ def to_config_key(scenario_id: str) -> str | None:
         "web-vuln": "webVuln",
         "container-escape": "containerEscape",
         "network-attack": "networkAttack",
+        "nextjs": "nextjs",
     }
     return mapping.get(scenario_id)
 
@@ -27,6 +28,7 @@ def list() -> None:  # noqa: A001
         ["web-vuln", "Web Application 취약점", "초급", "✅ 사용 가능"],
         ["container-escape", "Container Escape", "중급", "✅ 사용 가능"],
         ["network-attack", "Network Attack", "중급", "✅ 사용 가능"],
+        ["nextjs", "Next.js Secure Coding", "고급", "✅ 사용 가능"],
         ["api-security", "API Security", "중급", "🚧 개발 중"],
     ]
     headers = ["ID", "시나리오", "난이도", "상태"]
@@ -48,7 +50,6 @@ def deploy(scenario_id: str) -> None:
     if not os.path.exists(chart_path) and os.path.exists("../charts/c2z"):
         chart_path = "../charts/c2z"
 
-    # Monolith chart strategy: Update the main release with the scenario enabled
     cmd = [
         "helm",
         "upgrade",
@@ -136,6 +137,10 @@ def status() -> None:
 def logs(scenario_id: str) -> None:
     """시나리오 로그 조회"""
     ns = f"scenario-{scenario_id}"
+    
+    if scenario_id == "nextjs":
+        ns = "c2z-system"
+
     cmd = [
         "kubectl",
         "logs",
@@ -154,10 +159,33 @@ def logs(scenario_id: str) -> None:
         return
 
 
+@cli.command()
+def build() -> None:
+    """Next.js 이미지 빌드"""
+    click.echo("🐳 Minikube Docker 환경에 연결하여 빌드를 시작합니다...")
+    src_path = "./nextjs-src"
+    if not os.path.exists(src_path) and os.path.exists("../nextjs-src"):
+        src_path = "../nextjs-src"
+
+    if not os.path.exists(src_path):
+        click.echo(f"❌ 소스코드 폴더({src_path})를 찾을 수 없습니다.", err=True)
+        return
+
+    cmd = f"eval $(minikube docker-env) && docker build -t nextjs:16.1.1 {src_path}"
+    try:
+        subprocess.run(cmd, shell=True, check=True, executable="/bin/bash")
+        click.echo("\n✅ 빌드 성공!")
+    except subprocess.CalledProcessError:
+        click.echo("\n❌ 빌드 실패", err=True)
+
+
 def get_access_info(scenario_id: str) -> None:
     """시나리오 접속 정보 출력"""
     click.echo("\n📍 접속 정보:")
     ns = f"scenario-{scenario_id}"
+
+    if scenario_id == "nextjs":
+        ns = "c2z-system"
 
     try:
         result = subprocess.run(

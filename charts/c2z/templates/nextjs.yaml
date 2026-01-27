@@ -1,0 +1,41 @@
+{{- if .Values.scenarios.nextjs.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nextjs-16-1-1
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: nextjs
+    scenario: nextjs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nextjs
+  template:
+    metadata:
+      labels:
+        app: nextjs
+        scenario: nextjs
+    spec:
+      containers:
+        - name: nextjs
+          image: "{{ .Values.scenarios.nextjs.image.repository }}:{{ .Values.scenarios.nextjs.image.tag }}"
+          imagePullPolicy: {{ .Values.scenarios.nextjs.image.pullPolicy }}
+          ports:
+            - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nextjs-service
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: NodePort
+  selector:
+    app: nextjs
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: {{ .Values.scenarios.nextjs.service.nodePort }}
+{{- end -}}
