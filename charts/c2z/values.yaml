@@ -51,6 +51,7 @@ scenarios:
       pullPolicy: Never
     service:
       port: 3000
+      nodePort: 30082
 
 # 모니터링 스택
 monitoring:

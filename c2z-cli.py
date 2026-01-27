@@ -50,17 +50,13 @@ def deploy(scenario_id: str) -> None:
     if not os.path.exists(chart_path) and os.path.exists("../charts/c2z"):
         chart_path = "../charts/c2z"
 
-    ns = "c2z-system"
-
     cmd = [
         "helm",
         "upgrade",
-        "--install",
         "c2z",
         chart_path,
         "--namespace",
-        ns,
-        "--create-namespace",
+        "c2z-system",
         "--reuse-values",
         "--set",
         f"scenarios.{key}.enabled=true",
@@ -70,7 +66,7 @@ def deploy(scenario_id: str) -> None:
     try:
         subprocess.run(cmd, check=True)
         click.echo(f"✅ 시나리오 배포 완료: {scenario_id}")
-        get_access_info(scenario_id, ns)
+        get_access_info(scenario_id)
     except subprocess.CalledProcessError as e:
         click.echo(f"❌ 배포 실패: {e}", err=True)
 
@@ -91,15 +87,13 @@ def delete(scenario_id: str) -> None:
         if not os.path.exists(chart_path) and os.path.exists("../charts/c2z"):
             chart_path = "../charts/c2z"
 
-        ns = "c2z-system"
-
         cmd = [
             "helm",
             "upgrade",
             "c2z",
             chart_path,
             "--namespace",
-            ns,
+            "c2z-system",
             "--reuse-values",
             "--set",
             f"scenarios.{key}.enabled=false",
@@ -125,7 +119,6 @@ def status() -> None:
         "scenario-web-vuln",
         "scenario-container-escape",
         "scenario-network-attack",
-        "scenario-nextjs",
     ]
     for ns in scenarios:
         check_ns = subprocess.run(
@@ -144,7 +137,7 @@ def status() -> None:
 def logs(scenario_id: str) -> None:
     """시나리오 로그 조회"""
     ns = f"scenario-{scenario_id}"
-
+    
     if scenario_id == "nextjs":
         ns = "c2z-system"
 
@@ -168,9 +161,8 @@ def logs(scenario_id: str) -> None:
 
 @cli.command()
 def build() -> None:
-    """Next.js 이미지 빌드 (Minikube Docker Env)"""
+    """Next.js 이미지 빌드"""
     click.echo("🐳 Minikube Docker 환경에 연결하여 빌드를 시작합니다...")
-
     src_path = "./nextjs-src"
     if not os.path.exists(src_path) and os.path.exists("../nextjs-src"):
         src_path = "../nextjs-src"
@@ -180,19 +172,51 @@ def build() -> None:
         return
 
     cmd = f"eval $(minikube docker-env) && docker build -t nextjs:16.1.1 {src_path}"
-
     try:
         subprocess.run(cmd, shell=True, check=True, executable="/bin/bash")
-        click.echo("\n✅ 빌드 성공! 이제 'nextjs'를 실행할 수 있습니다.")
+        click.echo("\n✅ 빌드 성공!")
     except subprocess.CalledProcessError:
-        click.echo("\n❌ 빌드 실패: 도커 연결 또는 용량을 확인하세요.", err=True)
+        click.echo("\n❌ 빌드 실패", err=True)
 
 
-def get_access_info(scenario_id: str, ns: str) -> None:
+def get_access_info(scenario_id: str) -> None:
+    """시나리오 접속 정보 출력"""
+    click.echo("\n📍 접속 정보:")
+    ns = f"scenario-{scenario_id}"
+
     if scenario_id == "nextjs":
-        click.echo("\n📍 [접속 정보]")
-        click.echo(f"   명령어: kubectl port-forward -n {ns} deployment/nextjs-16-1-1 8082:3000")
-        click.echo(f"   주소: http://localhost:8082")
+        ns = "c2z-system"
+
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "svc", "-n", ns, "-o", "json"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        services = yaml.safe_load(result.stdout)
+
+        found = False
+        for svc in services.get("items", []):
+            name = svc["metadata"]["name"]
+            spec = svc.get("spec", {})
+            ports = spec.get("ports", [])
+
+            for p in ports:
+                port = p["port"]
+                click.echo(f"  - Service: {name}")
+                click.echo(
+                    f"    Local Access: kubectl port-forward -n {ns} svc/{name} {port}:{port}"
+                )
+                found = True
+
+        if not found:
+            click.echo("  (No services found)")
+
+    except subprocess.CalledProcessError:
+        click.echo(f"  Namespace '{ns}'에 접근할 수 없거나 서비스가 없습니다.")
+    except Exception as e:
+        click.echo(f"  정보 조회 오류: {e}")
 
 
 if __name__ == "__main__":
