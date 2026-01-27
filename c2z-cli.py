@@ -139,7 +139,7 @@ def status() -> None:
 def logs(scenario_id: str) -> None:
     """시나리오 로그 조회"""
     ns = f"scenario-{scenario_id}"
-    
+
     if scenario_id == "nextjs":
         ns = "c2z-system"
 
